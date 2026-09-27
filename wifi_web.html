@@ -3,10 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wi-Fi Sense</title>
+<title>WiFi Sense</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#2a78d6">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/brand/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <style>
   /* ---------- tokens ---------- */
   :root {
@@ -251,6 +253,48 @@
   .rooms .ic { width: 30px; height: 30px; border-radius: 8px; background: var(--cb); color: var(--c); display: grid; place-items: center; }
   .rooms .ic svg { width: 16px; height: 16px; }
 
+  /* ---------- brand / mode / day / why ---------- */
+  .logo-img { width: 40px; height: 40px; object-fit: contain; flex: none; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { font: inherit; font-size: 12px; border: 0; background: none; color: var(--text-2); padding: 0 12px; height: 30px; cursor: pointer; }
+  .seg button.on { background: var(--text); color: var(--surface); font-weight: 600; }
+  body.simple .x-only { display: none !important; }
+  body.simple .kpis { grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 760px) { body.simple .kpis { grid-template-columns: 1fr; } }
+  body.simple #k-presence { grid-column: auto; }
+  body.simple #k-presence .room { font-size: 36px; }
+  body.simple .feed li:nth-child(n+7) { display: none; }
+  .day-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .day-head h2 { font-size: 15px; margin: 0 8px 0 0; font-weight: 650; }
+  .day-head .right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  #day { width: 100%; height: auto; display: block; touch-action: none; cursor: crosshair; user-select: none; }
+  .lane-lbl { fill: var(--muted); font-size: 11px; }
+  .ev-mark { cursor: pointer; }
+  .ev-mark:hover { filter: brightness(1.25); }
+  .day-info { display: flex; gap: 10px 20px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; font-size: 12.5px; color: var(--text-2); min-height: 22px; }
+  .day-info b { color: var(--text); }
+  .day-info .evs { display: flex; flex-direction: column; gap: 3px; }
+  .day-info .evs a { color: var(--text-2); text-decoration: none; cursor: pointer; }
+  .day-info .evs a:hover { color: var(--text); text-decoration: underline; }
+  .replay-bar { display: none; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; margin-bottom: 10px;
+                background: var(--warning-bg); border: 1px solid var(--warning); font-size: 13px; flex-wrap: wrap; }
+  .replay-bar.show { display: flex; }
+  .replay-bar svg { width: 16px; height: 16px; color: var(--warning); }
+  dialog#why { width: min(820px, 94vw); max-height: 90vh; border: 1px solid var(--border); border-radius: 14px; padding: 0;
+               background: var(--surface); color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  dialog#why::backdrop { background: rgba(0,0,0,.45); }
+  .why-in { padding: 18px 20px; overflow-y: auto; max-height: 88vh; }
+  .why-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+  .why-top .ic { width: 34px; height: 34px; border-radius: 9px; background: var(--cb); color: var(--c); display: grid; place-items: center; flex: none; }
+  .why-top .ic svg { width: 18px; height: 18px; }
+  .why-top h3 { margin: 0; font-size: 16px; }
+  .why-top .x { margin-left: auto; }
+  .explain { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; margin: 6px 0 12px; }
+  .why-chart-lbl { font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .whybtn { font: inherit; font-size: 11px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+            border-radius: 6px; padding: 1px 7px; cursor: pointer; line-height: 18px; margin-left: 6px; }
+  .whybtn:hover { color: var(--text); border-color: var(--muted); }
+
   /* ---------- feed ---------- */
   .feed { list-style: none; margin: 0; padding: 0; max-height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
   .feed li { display: flex; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2);
@@ -401,8 +445,8 @@
 <div class="wrap">
   <header>
     <div class="brand">
-      <div class="logo"><svg><use href="#i-radio"/></svg></div>
-      <div><h1>Wi-Fi Sense</h1><div class="tag">Passive RF motion &amp; presence sensing</div></div>
+      <img class="logo-img" src="/brand/logo_mark.png" alt="WiFi Sense logo">
+      <div><h1>WiFi Sense</h1><div class="tag">Smarter connectivity · passive motion &amp; presence sensing</div></div>
     </div>
     <div id="status" class="status sev-warning"><svg><use href="#i-clock"/></svg><span>Connecting…</span></div>
     <div class="hdr-right">
@@ -411,6 +455,8 @@
       <span>Scan <b id="m-scans" class="num">–</b></span>
       <span>Uptime <b id="m-up" class="num">–</b></span>
       <span>DB <b id="m-db">–</b></span>
+      <div class="seg" id="mode" role="group" aria-label="View mode">
+        <button data-m="simple" title="Just the essentials">Simple</button><button data-m="expert" title="Everything">Expert</button></div>
       <button class="btn" id="theme" title="Toggle light/dark"><svg class="i"><use href="#i-moon"/></svg><span>Theme</span></button>
     </div>
   </header>
@@ -451,7 +497,7 @@
       </div>
       <div class="foot" id="k-score-foot"></div>
     </div>
-    <div class="card kpi">
+    <div class="card kpi x-only">
       <div class="lbl"><svg><use href="#i-home"/></svg>Room activity · 5 min</div>
       <div class="val" id="k-occ">–<small>%</small></div>
       <div class="foot" id="k-occ-foot"></div>
@@ -461,31 +507,55 @@
       <div class="val" id="k-today">–</div>
       <div class="foot" id="k-last"></div>
     </div>
-    <div class="card kpi">
+    <div class="card kpi x-only">
       <div class="lbl"><svg><use href="#i-radio"/></svg>Wi-Fi sources nearby</div>
       <div class="val" id="k-aps">–</div>
       <div class="foot chips" id="k-types"></div>
     </div>
-    <div class="card kpi">
+    <div class="card kpi x-only">
       <div class="lbl"><svg><use href="#i-wifi"/></svg>Your link</div>
       <div class="val" id="k-link">–</div>
       <div class="foot" id="k-link-foot"></div>
     </div>
-    <div class="card kpi">
+    <div class="card kpi x-only">
       <div class="lbl"><svg><use href="#i-target"/></svg>Detection accuracy</div>
       <div class="val" id="k-acc">–<small>%</small></div>
       <ul class="reasons" id="k-acc-why"></ul>
     </div>
-    <div class="card kpi">
+    <div class="card kpi x-only">
       <div class="lbl"><svg><use href="#i-router"/></svg>Channel congestion</div>
       <div class="val" id="k-ch">–</div>
       <div class="foot" id="k-ch-foot"></div>
     </div>
   </section>
 
+  <!-- your day -->
+  <section class="card" style="margin-bottom:16px">
+    <div class="day-head">
+      <h2>Your day</h2>
+      <span class="rng" style="display:inline">Drag or click along the timeline to replay that moment on the signal map. Click a marker for details.</span>
+      <div class="right">
+        <button class="btn sm" id="day-prev" title="Previous day">◀</button>
+        <input type="date" id="day-date" style="height:26px">
+        <button class="btn sm" id="day-next" title="Next day">▶</button>
+        <button class="btn sm" id="day-today">Today</button>
+      </div>
+    </div>
+    <svg id="day" viewBox="0 0 1000 150" role="img" aria-label="Timeline of the day"></svg>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--series);height:8px"></i>Room occupied</span>
+      <span><i class="swatch" style="background:var(--serious);height:8px"></i>Movement (per minute)</span>
+      <span><i class="swatch" style="background:var(--grid);height:8px"></i>Sensor running</span>
+      <span><svg><use href="#i-tag"/></svg>Events (colour = severity)</span>
+    </div>
+    <div class="day-info" id="day-info"></div>
+  </section>
+
   <!-- radar + feed -->
   <section class="row a">
     <div class="card">
+      <div class="replay-bar" id="replay-bar"><svg><use href="#i-history"/></svg><span id="replay-txt"></span>
+        <button class="btn sm" id="replay-exit">Back to live</button></div>
       <div class="card-h"><div><h2>Signal map</h2>
         <p>Radius is the estimated distance. Angle is arbitrary: one antenna can't sense direction.</p></div></div>
       <svg id="radar" class="chart" viewBox="0 0 600 600" role="img" aria-label="Wi-Fi sources at estimated distance"></svg>
@@ -509,7 +579,7 @@
   </section>
 
   <!-- activity + hourly -->
-  <section class="row b">
+  <section class="x-only row b">
     <div class="card">
       <div class="card-h"><div><h2>Activity level</h2>
         <p>Wobble as a multiple of each path's own threshold, over the last ~90 s. 1.0× = motion, 2.0× = strong.</p></div></div>
@@ -527,7 +597,7 @@
   </section>
 
   <!-- AI + bluetooth + settings -->
-  <section class="row d">
+  <section class="x-only row d">
     <div class="card">
       <div class="card-h"><div><h2>Activity recognition</h2>
         <p>A model trained on your room. Label what's happening while it records, then train.</p></div>
@@ -591,7 +661,7 @@
   </section>
 
   <!-- rhythm + rooms -->
-  <section class="row e">
+  <section class="x-only row e">
     <div class="card">
       <div class="card-h"><div><h2>Movement rhythm</h2>
         <p>Frequency analysis of your live link (last ~13 s). Walking shows up around 1–2.5 Hz. Also tracks link-speed swings.</p></div>
@@ -608,7 +678,7 @@
   </section>
 
   <!-- channels + key -->
-  <section class="row c">
+  <section class="x-only row c">
     <div class="card">
       <div class="card-h"><div><h2>2.4 GHz channel usage</h2>
         <p>Networks per channel. The shaded band is the range that overlaps your channel.</p></div></div>
@@ -636,7 +706,7 @@
   </section>
 
   <!-- table -->
-  <section class="card">
+  <section class="card x-only">
     <div class="card-h"><div><h2>Wi-Fi sources in range</h2>
       <p>Trend shows the last ~60 s of signal. The dashed line is the learned baseline. Every reading is logged to MySQL <span class="mono">scans</span>.</p></div></div>
     <div class="table-wrap">
@@ -654,6 +724,7 @@
 </div>
 <div id="tip"></div>
 <div id="toast" role="status"></div>
+<dialog id="why" aria-label="Why did it fire?"><div class="why-in" id="why-in"></div></dialog>
 
 <script>
 // ================= helpers =================
@@ -858,12 +929,16 @@ function drawPresence(s) {
 const RC = 300, RR = 240, NICE = [1, 2, 5, 10, 20, 50, 100, 200];
 let radarIdx = {}, lastWarming = true;
 function drawRadar(s) {
+  if (replay && replay.aps) s = { ...s, aps: replay.aps, warming: false };
   const aps = s.aps, n = aps.length;
   const maxDist = Math.max(2, ...aps.map(a => a.dist));
   const maxD = NICE.find(v => v >= maxDist * 1.05) || maxDist * 1.1;
   const rOf = d => Math.sqrt(Math.min(d, maxD) / maxD) * RR;
   let g = `<circle class="ring-fill" cx="${RC}" cy="${RC}" r="${RR}"/>`;
-  g += `<g class="sweep"><path d="M${RC},${RC} L${RC},${RC - RR} A${RR},${RR} 0 0 1 ${RC + RR * Math.sin(Math.PI / 5)},${RC - RR * Math.cos(Math.PI / 5)} Z"
+  // The map is rebuilt every scan (~1.5 s); a fresh element would restart the 6 s sweep at 0°, so it never
+  // got past ~90°. A negative delay taken from the clock starts each new element at the current angle.
+  const sweepDelay = -(performance.now() % 6000);
+  g += `<g class="sweep" style="animation-delay:${sweepDelay.toFixed(0)}ms"><path d="M${RC},${RC} L${RC},${RC - RR} A${RR},${RR} 0 0 1 ${RC + RR * Math.sin(Math.PI / 5)},${RC - RR * Math.cos(Math.PI / 5)} Z"
         fill="var(--series)" opacity=".07"/></g>`;
   const rings = NICE.filter(v => v <= maxD);
   for (const d of rings) {
@@ -895,7 +970,7 @@ function drawRadar(s) {
     if (s.warming || a.state === "stable") continue;
     const px = (RC + x) / 2, py = (RC + y) / 2, pulse = a.state === "moving";
     g += `<g class="presence sev-${si.sev}">
-      ${pulse ? `<circle class="pulse" cx="${px}" cy="${py}" r="12"/>` : ""}
+      ${pulse ? `<circle class="pulse" cx="${px}" cy="${py}" r="12" style="animation-delay:${-(performance.now() % 1400).toFixed(0)}ms"/>` : ""}
       <circle cx="${px}" cy="${py}" r="12" fill="var(--cb)" stroke="var(--c)" stroke-width="1.8"/>
       ${use(si.icon, px, py, 15)}</g>`;
   }
@@ -1078,6 +1153,7 @@ $("filters").addEventListener("click", ev => {
   if (lastState) drawFeed(lastState);
 });
 $("feed").addEventListener("click", async ev => {
+  const w = ev.target.closest("button[data-why]"); if (w) return openWhy(+w.dataset.why);
   const b = ev.target.closest("button[data-fb]"); if (!b) return;
   b.parentElement.querySelectorAll("button").forEach(x => x.disabled = true);
   const r = await api("/api/feedback", { id: +b.dataset.id, verdict: b.dataset.fb });
@@ -1093,7 +1169,7 @@ function drawFeed(s) {
     const when = e.past ? e.ts.slice(5, 16) : ago((nowD - parseTs(e.ts)) / 1000);
     return `<li class="sev-${e.severity}${e.past ? " past" : ""}"><i class="ic">${svgI(e.kind === "motion" && e.severity === "serious" ? "i-person" : f.icon)}</i>
       <div class="body"><div class="top"><span class="ttl">${title}</span><span class="when" title="${esc(e.ts)}">${when}</span></div>
-      <div class="msg">${esc(e.msg)}</div><div style="margin-top:3px">${e.conf != null ? confHtml(e.conf) : ""}${fbHtml(e)}</div></div></li>`;
+      <div class="msg">${esc(e.msg)}</div><div style="margin-top:3px">${e.conf != null ? confHtml(e.conf) : ""}${fbHtml(e)}${e.id ? `<button class="whybtn" data-why="${e.id}" title="Show the signals around this detection">Why?</button>` : ""}</div></div></li>`;
   }).join("") : `<li class="sev-good"><i class="ic">${svgI("i-check")}</i><div class="body"><div class="ttl">Nothing yet</div>
       <div class="msg">Detections appear here as they happen.</div></div></li>`;
 }
@@ -1294,6 +1370,182 @@ $("backup-now").addEventListener("click", async () => {
   $("backup-sum").textContent = r.ok ? `Saved backups/${r.file} (${r.size_kb} KB)` : "Backup failed: " + (r.error || "unknown");
 });
 
+// ================= Simple / Expert =================
+(function initMode() {
+  let m = "simple";
+  try { m = localStorage.getItem("wifisense-mode") || "simple"; } catch {}
+  const q = new URLSearchParams(location.search).get("mode");      // /?mode=expert bookmarks a mode
+  if (q === "simple" || q === "expert") m = q;
+  const apply = mode => {
+    document.body.classList.toggle("simple", mode === "simple");
+    [...$("mode").children].forEach(b => b.classList.toggle("on", b.dataset.m === mode));
+    try { localStorage.setItem("wifisense-mode", mode); } catch {}
+    if (lastState) { lastScan = -1; render(lastState); }
+  };
+  $("mode").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) apply(b.dataset.m); });
+  apply(m);
+})();
+
+// ================= Your day =================
+let dayData = null, replay = null;
+const pad2 = n => String(n).padStart(2, "0");
+const localDate = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const hhmmss = t => { const d = new Date(t * 1000); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+const SEV_COL = { critical: "var(--critical)", serious: "var(--serious)", warning: "var(--warning)",
+                  info: "var(--info)", good: "var(--good)", neutral: "var(--neutral)" };
+const DAY = { l: 70, r: 12, w: 1000, lanes: { run: 22, occ: 46, mot: 80, ev: 118 } };
+
+async function loadDay(date) {
+  $("day-date").value = date;
+  try { dayData = await (await fetch(`/api/day?date=${date}`, { cache: "no-store" })).json(); drawDay(); }
+  catch { $("day").innerHTML = `<text class="lane-lbl" x="500" y="75" text-anchor="middle">Could not load the day</text>`; }
+}
+function dayX(t) { return DAY.l + (t - dayData.start) / 86400 * (DAY.w - DAY.l - DAY.r); }
+function drawDay(cursorT) {
+  if (!dayData) return;
+  const d = dayData, pw = DAY.w - DAY.l - DAY.r, mx = m => DAY.l + m / 1440 * pw;
+  let g = "";
+  for (let h = 0; h <= 24; h += 3) {
+    const x = mx(h * 60);
+    g += `<line x1="${x}" x2="${x}" y1="12" y2="138" stroke="var(--grid)"/><text class="lane-lbl" x="${x}" y="148" text-anchor="middle">${pad2(h % 24)}:00</text>`;
+  }
+  g += `<text class="lane-lbl" x="4" y="${DAY.lanes.run + 4}">Sensor</text><text class="lane-lbl" x="4" y="${DAY.lanes.occ + 4}">Room</text>
+        <text class="lane-lbl" x="4" y="${DAY.lanes.mot + 4}">Movement</text><text class="lane-lbl" x="4" y="${DAY.lanes.ev + 4}">Events</text>`;
+  // sensor running: merge consecutive minutes into bars
+  let a = null, prev = null;
+  const runBar = (s, e) => `<rect x="${mx(s)}" y="${DAY.lanes.run - 3}" width="${Math.max(1, mx(e + 1) - mx(s))}" height="6" rx="3" fill="var(--grid)"/>`;
+  for (const m of d.running) { if (a === null) a = m; else if (m !== prev + 1) { g += runBar(a, prev); a = m; } prev = m; }
+  if (a !== null) g += runBar(a, prev);
+  // occupied segments
+  for (const [s0, e0] of d.occupied) g += `<rect x="${dayX(s0)}" y="${DAY.lanes.occ - 8}" width="${Math.max(2, dayX(e0) - dayX(s0))}" height="16" rx="4" fill="var(--series)"><title>Occupied ${hhmmss(s0)}–${hhmmss(e0)}</title></rect>`;
+  // movement per minute (bar height = scans with motion in that minute)
+  for (const [m, v] of Object.entries(d.motion)) {
+    const h = Math.min(22, 4 + v.n * 1.5);
+    g += `<rect x="${mx(+m)}" y="${DAY.lanes.mot + 11 - h}" width="${Math.max(1.5, pw / 1440)}" height="${h}" fill="var(--serious)"/>`;
+  }
+  g += `<line x1="${DAY.l}" x2="${DAY.l + pw}" y1="${DAY.lanes.mot + 11}" y2="${DAY.lanes.mot + 11}" stroke="var(--border)"/>`;
+  // event markers
+  for (const e of d.events) {
+    const x = dayX(e.t), c = SEV_COL[e.severity] || "var(--neutral)";
+    g += `<g class="ev-mark" data-id="${e.id}"><circle cx="${x}" cy="${DAY.lanes.ev}" r="9" fill="transparent"/><path d="M${x} ${DAY.lanes.ev - 6} L${x + 6} ${DAY.lanes.ev} L${x} ${DAY.lanes.ev + 6} L${x - 6} ${DAY.lanes.ev}Z" fill="${c}" stroke="var(--surface)" stroke-width="1.5"><title>${hhmmss(e.t)} ${esc(e.msg || e.kind)}</title></path></g>`;
+  }
+  // now line + replay cursor
+  if (d.now < d.end) g += `<line x1="${dayX(d.now)}" x2="${dayX(d.now)}" y1="10" y2="132" stroke="var(--text-2)" stroke-dasharray="3 3"/><text class="lane-lbl" x="${dayX(d.now) + 3}" y="10">now</text>`;
+  const ct = cursorT ?? (replay ? replay.epoch : null);
+  if (ct) g += `<line x1="${dayX(ct)}" x2="${dayX(ct)}" y1="8" y2="134" stroke="var(--warning)" stroke-width="2"/><rect x="${dayX(ct) - 26}" y="0" width="52" height="12" rx="6" fill="var(--warning)"/><text x="${dayX(ct)}" y="9" text-anchor="middle" font-size="9" font-weight="700" fill="#000">${hhmmss(ct).slice(0, 5)}</text>`;
+  g += `<rect id="day-hit" x="${DAY.l}" y="8" width="${pw}" height="${DAY.lanes.ev - 16}" fill="transparent"/>`;
+  $("day").innerHTML = g;
+  if (!d.running.length && !d.events.length) $("day-info").innerHTML = "No data recorded on this day.";
+}
+function dayEventAt(ev) {
+  const svg = $("day"), pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+  const x = pt.matrixTransform(svg.getScreenCTM().inverse()).x;
+  const t = dayData.start + (x - DAY.l) / (DAY.w - DAY.l - DAY.r) * 86400;
+  return Math.max(dayData.start, Math.min(Math.min(dayData.end, dayData.now), t));
+}
+let scrubbing = false, scrubTimer = null;
+$("day").addEventListener("pointerdown", ev => {
+  const mk = ev.target.closest(".ev-mark"); if (mk) return openWhy(+mk.dataset.id);
+  if (!dayData || ev.target.id !== "day-hit") return;
+  scrubbing = true; $("day").setPointerCapture(ev.pointerId); scrubTo(dayEventAt(ev));
+});
+$("day").addEventListener("pointermove", ev => { if (scrubbing) scrubTo(dayEventAt(ev)); });
+$("day").addEventListener("pointerup", () => { scrubbing = false; });
+function scrubTo(t) {
+  drawDay(t);
+  clearTimeout(scrubTimer);
+  scrubTimer = setTimeout(async () => {
+    try {
+      const r = await (await fetch(`/api/at?t=${t}`, { cache: "no-store" })).json();
+      replay = r.has_data ? r : { epoch: t, aps: null, events: r.events, room: r.room };
+      showReplay();
+    } catch {}
+  }, 120);
+}
+function showReplay() {
+  if (!replay) { $("replay-bar").classList.remove("show"); $("day-info").innerHTML = ""; if (lastState) drawRadar(lastState); drawDay(); return; }
+  const moving = (replay.aps || []).filter(a => a.state === "moving");
+  $("replay-bar").classList.add("show");
+  $("replay-txt").innerHTML = `Replaying <b>${hhmmss(replay.epoch)}</b>${replay.aps ? ` · ${replay.aps.length} sources · ${moving.length} moving` : " · the sensor wasn't running then"}`;
+  $("day-info").innerHTML = `<span><b>${hhmmss(replay.epoch)}</b></span>
+    <span>Room: <b>${replay.room === "occupied" ? "Occupied" : replay.room === "empty" ? "Empty" : "unknown"}</b></span>
+    <span>Movement: <b>${moving.length ? moving.map(a => esc(a.name || a.ssid)).join(", ") : "none"}</b></span>
+    <span class="evs">${(replay.events || []).slice(0, 6).map(e => `<a data-why="${e.id}">${esc(e.ts.slice(11, 19))} · ${esc(e.msg || e.kind)}</a>`).join("") || "No events within ±5 min"}</span>`;
+  if (lastState) drawRadar(lastState);
+}
+$("day-info").addEventListener("click", ev => { const a = ev.target.closest("a[data-why]"); if (a) openWhy(+a.dataset.why); });
+$("replay-exit").addEventListener("click", () => { replay = null; showReplay(); });
+const shiftDay = n => { const d = new Date($("day-date").value + "T12:00"); d.setDate(d.getDate() + n); replay = null; showReplay(); loadDay(localDate(d)); };
+$("day-prev").addEventListener("click", () => shiftDay(-1));
+$("day-next").addEventListener("click", () => shiftDay(1));
+$("day-today").addEventListener("click", () => { replay = null; showReplay(); loadDay(localDate(new Date())); });
+$("day-date").addEventListener("change", () => { replay = null; showReplay(); loadDay($("day-date").value); });
+loadDay(localDate(new Date()));
+setInterval(() => { if (!replay && !scrubbing && $("day-date").value === localDate(new Date())) loadDay($("day-date").value); }, 60000);
+
+// ================= Why did it fire? =================
+function whyChart(series, key, win, evT, opts) {
+  const W = 760, H = 170, l = 40, r = 8, t = 8, b = 22, pw = W - l - r, ph = H - t - b;
+  const all = series.flatMap(s => s[key].map(p => p[1]));
+  if (!all.length) return `<div class="rng">No ${opts.what} recorded for this moment${opts.hint ? " (" + opts.hint + ")" : ""}.</div>`;
+  let lo = opts.lo ?? Math.min(...all), hi = Math.max(...all, opts.minHi ?? -Infinity);
+  if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
+  const X = tt => l + (tt - win.start) / (win.end - win.start) * pw, Y = v => t + ph - (v - lo) / (hi - lo) * ph;
+  const cols = ["var(--series)", "var(--series-2)", "#9085e9", "var(--warning)", "#e87ba4"];
+  let g = "";
+  for (let i = 0; i <= 3; i++) { const v = lo + (hi - lo) * i / 3;
+    g += `<line x1="${l}" x2="${l + pw}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text class="axis" x="${l - 5}" y="${Y(v) + 4}" text-anchor="end">${Math.round(v * 10) / 10}${opts.unit || ""}</text>`; }
+  if (opts.thresh != null && opts.thresh <= hi) g += `<line x1="${l}" x2="${l + pw}" y1="${Y(opts.thresh)}" y2="${Y(opts.thresh)}" class="thresh"/><text class="lbl-sm" x="${l + 4}" y="${Y(opts.thresh) - 4}">threshold</text>`;
+  g += `<line x1="${X(evT)}" x2="${X(evT)}" y1="${t}" y2="${t + ph}" stroke="var(--text)" stroke-dasharray="4 3"/><text class="lbl-strong" x="${X(evT) + 4}" y="${t + 10}">event</text>`;
+  series.forEach((s, i) => {
+    const pts = s[key]; if (pts.length < 2) return;
+    g += `<path d="${pts.map((p, j) => `${j ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("")}" fill="none" stroke="${cols[i % cols.length]}" stroke-width="2" stroke-linejoin="round"/>`;
+  });
+  g += `<text class="axis" x="${l}" y="${H - 6}">−${Math.round(evT - win.start)} s</text><text class="axis" x="${l + pw}" y="${H - 6}" text-anchor="end">+${Math.round(win.end - evT)} s</text>`;
+  const legend = series.map((s, i) => `<span><i class="swatch" style="background:${cols[i % cols.length]}"></i>${esc(s.name)}</span>`).join("");
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">${g}</svg><div class="legend">${legend}</div>`;
+}
+async function openWhy(id) {
+  const dlg = $("why");
+  $("why-in").innerHTML = `<div class="rng">Loading…</div>`;
+  if (!dlg.open) dlg.showModal();
+  let d;
+  try { d = await (await fetch(`/api/why?id=${id}`, { cache: "no-store" })).json(); if (d.error) throw new Error(d.error); }
+  catch (e) { $("why-in").innerHTML = `<div class="rng">Could not load: ${esc(e.message)}</div>`; return; }
+  const f = FEED[d.det.kind] || { icon: "i-check", title: d.det.kind };
+  const title = d.det.kind === "motion" ? (d.det.severity === "critical" ? "Strong movement" : "Light movement") : f.title;
+  const hasRatio = d.series.some(s => s.ratio.length);
+  $("why-in").innerHTML = `
+    <div class="why-top sev-${esc(d.det.severity)}"><i class="ic">${svgI(f.icon)}</i>
+      <div><h3>Why: ${esc(title)}</h3><div class="rng">${esc(d.det.ts)}${d.det.conf != null ? ` · ${d.det.conf}% confidence` : ""}</div></div>
+      <button class="btn sm x" id="why-close">Close</button></div>
+    <div class="explain">${esc(d.explain || d.det.msg || "")}</div>
+    ${hasRatio ? `<div class="why-chart-lbl">Wobble ÷ each path's own threshold (what the live detector compared). 1.0 = motion.</div>
+      ${whyChart(d.series, "ratio", d.window, d.det.epoch, { what: "threshold ratios", lo: 0, minHi: 1.5, thresh: 1, unit: "×" })}`
+      : `<div class="why-chart-lbl">Signal wobble (std-dev of signal %, 8-scan window)</div>
+      ${whyChart(d.series, "wobble", d.window, d.det.epoch, { what: "wobble", lo: 0, hint: "raw scans are kept for the retention period" })}`}
+    <div class="why-chart-lbl">Signal strength (%) on the involved paths</div>
+    ${whyChart(d.series, "pct", d.window, d.det.epoch, { what: "signal readings", unit: "%", hint: "raw scans are kept for the retention period" })}
+    <div class="ctrl-row" style="margin-top:12px">${d.det.feedback ? `<span class="fb-done">${d.det.feedback === "correct" ? "👍 confirmed" : "👎 marked false"}</span>`
+      : `<span class="rng" style="display:inline">Was this right?</span><button class="btn sm" data-wfb="correct">👍 Correct</button><button class="btn sm" data-wfb="false">👎 False alarm</button>`}
+      <button class="btn sm" id="why-replay">Replay this moment on the map</button></div>
+    ${d.in_memory ? "" : `<div class="rng" style="margin-top:6px">Exact threshold ratios are kept in memory for about an hour; older events show the raw signal instead.</div>`}`;
+  $("why-close").onclick = () => dlg.close();
+  $("why-replay").onclick = async () => {
+    dlg.close();
+    const day = localDate(new Date(d.det.epoch * 1000));
+    if ($("day-date").value !== day) await loadDay(day);
+    scrubTo(d.det.epoch);
+    $("day").scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  $("why-in").querySelectorAll("[data-wfb]").forEach(b => b.onclick = async () => {
+    const r = await api("/api/feedback", { id: d.det.id, verdict: b.dataset.wfb });
+    toast(r.message || r.error || "Saved"); dlg.close(); lastScan = -1;
+  });
+}
+$("why").addEventListener("click", ev => { if (ev.target === $("why")) $("why").close(); });
+{ const m = location.hash.match(/^#why=(\d+)$/); if (m) openWhy(+m[1]); }      // deep link: /#why=123
+
 // ================= theme =================
 (function initTheme() {
   let saved = null; try { saved = localStorage.getItem("wifisense-theme"); } catch {}
@@ -1314,23 +1566,41 @@ $("backup-now").addEventListener("click", async () => {
   });
 })();
 
-// ================= poll =================
-let lastScan = -1;
-async function tick() {
-  try {
-    const s = await (await fetch("/api/state", { cache: "no-store" })).json();
-    $("banner").classList.remove("show"); $("live").classList.remove("off"); $("live-txt").textContent = "Live";
-    if (s.aps && s.scan_count !== lastScan) {
-      lastScan = s.scan_count; lastState = s; lastWarming = s.warming;
-      drawHeader(s); drawKpis(s); drawRadar(s); drawActivity(s); drawHourly(s); drawChannels(s); drawFeed(s); drawTable(s);
-      drawCalib(s); drawML(s); drawBLE(s); drawSettings(s); drawPresence(s); drawRhythm(s); drawRooms(s);
-    }
-  } catch {
-    $("banner").classList.add("show"); $("live").classList.add("off"); $("live-txt").textContent = "Offline";
+// ================= render + live push =================
+let lastScan = -1, lastEventCount = 0;
+function render(s) {
+  if (!s.aps || s.scan_count === lastScan) return;
+  lastScan = s.scan_count; lastState = s; lastWarming = s.warming;
+  const simple = document.body.classList.contains("simple");
+  drawHeader(s); drawKpis(s); drawRadar(s); drawFeed(s); drawPresence(s); drawCalib(s);
+  if (!simple) {                       // expert-only panels: skip the work when hidden
+    drawActivity(s); drawHourly(s); drawChannels(s); drawTable(s);
+    drawML(s); drawBLE(s); drawSettings(s); drawRhythm(s); drawRooms(s);
   }
-  setTimeout(tick, 1000);
+  const n = (s.feed || []).length;     // new detection -> refresh the day timeline
+  if (lastEventCount && n !== lastEventCount && !replay && !scrubbing && $("day-date").value === localDate(new Date())) loadDay($("day-date").value);
+  lastEventCount = n;
 }
-tick();
+function setLive(on, txt) {
+  $("banner").classList.toggle("show", !on); $("live").classList.toggle("off", !on); $("live-txt").textContent = txt;
+}
+async function pollOnce() {             // fallback when live push isn't available
+  try { render(await (await fetch("/api/state", { cache: "no-store" })).json()); setLive(true, "Live (polling)"); }
+  catch { setLive(false, "Offline"); }
+  setTimeout(pollOnce, 1500);
+}
+function connect() {
+  if (!("EventSource" in window)) return pollOnce();
+  const es = new EventSource("/api/stream");
+  let fails = 0;
+  es.onopen = () => { fails = 0; setLive(true, "Live"); };
+  es.onmessage = ev => { try { render(JSON.parse(ev.data)); } catch {} };
+  es.onerror = () => {
+    setLive(false, "Reconnecting…");
+    if (++fails >= 5) { es.close(); pollOnce(); }       // browser retries automatically; give up after 5
+  };
+}
+connect();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 </script>
 </body>

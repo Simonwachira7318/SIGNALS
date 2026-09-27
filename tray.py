@@ -31,6 +31,10 @@ def _redirect_output():
 
 def _icon_image():
     from PIL import Image, ImageDraw
+    from paths import resource
+    logo = resource("brand/logo_mark.png")
+    if logo.exists():                            # the brand mark (see make_icons.py)
+        return Image.open(logo).convert("RGBA").resize((64, 64), Image.LANCZOS)
     s = 64
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -70,7 +74,7 @@ def main():
         icon.stop()
         os._exit(0)                              # stops the sensor/server threads too
 
-    icon = pystray.Icon("wifi_sense", _icon_image(), "Wi-Fi Sense",
+    icon = pystray.Icon("wifi_sense", _icon_image(), "WiFi Sense",
                         menu=pystray.Menu(pystray.MenuItem("Open dashboard", open_dash, default=True),
                                           pystray.MenuItem("Open log", open_log),
                                           pystray.Menu.SEPARATOR,

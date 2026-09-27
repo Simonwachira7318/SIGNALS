@@ -159,6 +159,21 @@ class ReplayTests(unittest.TestCase):
         self.assertEqual(len(episodes(times, wob, th, 3.0, 30)), 0)   # less sensitive: none
 
 
+class InsightsTests(unittest.TestCase):
+    def test_trail_buckets_and_window(self):
+        import time as _t
+        from insights import trail
+        now = _t.time()
+        b0 = (int(now) // 20) * 20 - 60                                 # start of a 20 s bucket, 1 min ago
+        recent = [(now - 900, 1.5, 0, {"a": (1.5, "moving")}),          # older than 10 min: dropped
+                  (b0 + 1, 1.2, 0, {"a": (1.2, "moving"), "b": (0.2, "stable")}),
+                  (b0 + 2, 1.8, 0, {"a": (1.8, "moving")}),              # same 20 s bucket: keep the max
+                  (b0 + 30, 0.4, 0, {"b": (0.4, "still")})]
+        tr = trail(recent, 10)
+        self.assertEqual(sorted((x["bssid"], x["state"]) for x in tr), [("a", "moving"), ("b", "still")])
+        self.assertEqual(next(x for x in tr if x["bssid"] == "a")["ratio"], 1.8)
+
+
 class SettingsTests(unittest.TestCase):
     def test_ranges_and_validation(self):
         import alerts

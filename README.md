@@ -1,4 +1,6 @@
-# Wi-Fi Sense
+<p align="center"><img src="brand/logo_full.png" alt="WiFi Sense" width="420"></p>
+
+# WiFi Sense
 
 Passive Wi-Fi motion and presence sensing for Windows. It reads the signal
 strength of nearby Wi-Fi networks (and, optionally, Bluetooth devices) and
@@ -83,12 +85,20 @@ python -m unittest discover -s tests -v
 
 ## The dashboard
 
+**Simple / Expert** (top right). *Simple* shows the essentials: the big Room status, activity score,
+today's motion, **Your day**, the signal map and the latest detections. *Expert* adds every other panel.
+Your choice is remembered, and `/?mode=expert` or `/?mode=simple` bookmarks one.
+
+The page updates **live**: the server pushes every scan the moment it happens (Server-Sent Events,
+`/api/stream`). It falls back to polling if a browser or proxy can't keep the stream open.
+
 | Area | What it shows |
 | --- | --- |
 | Room tile | **Occupied / Empty** with how likely, for how long, why, and a last-hour timeline |
+| Your day | A timeline for the whole day: sensor running, room occupied, movement per minute, event markers. **Drag along it to replay** that moment on the signal map, and click a marker for its details |
 | Summary tiles | Activity score, room activity (5 min), motion episodes today, nearby sources, your live link (10 samples/s), **detection accuracy**, channel congestion + best channel |
 | Signal map | Routers, hotspots and TVs at estimated distance. The shaded band is the likely range (wider = less accurate). A person icon marks a disturbed signal path |
-| Detections | Colour-coded feed with a confidence % and **👍 Correct / 👎 False** buttons on each alert, filterable |
+| Detections | Colour-coded feed with a confidence %, **👍 Correct / 👎 False**, and **Why?** on each alert, filterable |
 | Activity chart | Each path's wobble as a multiple of its **own** threshold (1× = motion, 2× = strong) |
 | Activity recognition | A model you train on your own room (see below) |
 | Bluetooth nearby | Phones, watches and earbuds heard nearby, by maker |
@@ -203,6 +213,25 @@ Routing: security alerts always go to your phone. With **Away mode** on, motion,
 presence, room-occupied, unknown-device and Bluetooth alerts do too. Known-device arrivals never do. Desktop motion alerts are muted
 during quiet hours; security alerts still show. The token is only read from `.env` / the environment and is never shown or logged.
 
+## Why did it fire?
+
+Every detection has a **Why?** button, and so do the markers on *Your day*. It opens:
+
+- a plain-language reason (e.g. "The signal path to Paul wobbled 3.0× its own threshold at 15:25:44"),
+- the involved paths' **wobble ÷ threshold** around the event (45 s before to 30 s after), with the threshold
+  line. These exact live ratios are kept in memory for about an hour; older events show the raw wobble instead,
+- their **signal strength** over the same window,
+- 👍/👎 buttons and **Replay this moment on the map**.
+
+`/#why=<id>` opens one directly.
+
+## Your day and replay
+
+Drag or click along the *Your day* timeline and the signal map switches to **replay**. It shows the sources and
+which paths were disturbed at that moment (from the raw scans, so up to the retention period), the room
+state, and events within ±5 minutes. **Back to live** returns. ◀ ▶ and the date picker move between
+days; days whose raw scans have expired still show the hourly summary and events.
+
 ## Movement rhythm and link speed
 
 The live link is read about 10 times a second, and every scan the last ~13 s are run through a
@@ -247,6 +276,9 @@ motion sensing itself stays passive.
 3. Live: each signal path is a line. When one is disturbed, its **sensitive zone** (the ellipse
    between device and router where a body can affect the signal) lights up. Where several
    zones overlap is where the movement most likely is.
+4. **Heat trail** (on by default): disturbed zones stay on the plan and fade over 10 minutes, so you
+   see where activity *has been*, not just where it is now. The trail is filled from the server's memory
+   when you open the page, then grows live.
 
 With one laptop you get one zone per router. That's a strip, not a point. Add a node in
 another room and the zones cross.
@@ -354,6 +386,8 @@ also push events into Home Assistant directly.
 | `floorplan.html` | Floor plan |
 | `node.py` | Remote room sensor |
 | `tray.py`, `build_exe.ps1` | Tray app, standalone .exe build |
+| `insights.py` | Why-drilldown, day timeline, replay, heat trail data |
+| `make_icons.py`, `brand/`, `wifi-Photoroom.png` | Logo → favicon, header logo, app icons, tray and notification icon |
 | `manifest.json`, `sw.js`, `icon.svg` | Phone-app (PWA) files |
 | `tests/` | Unit tests |
 | `start_wifi_sense.bat`, `install_startup.ps1` | Start by hand / at login |
@@ -390,6 +424,18 @@ Generated at runtime: `settings.json`, `activity_model.json`, `floorplan.json`, 
   don't expose it. That can't be solved in software. It needs ESP32 boards (or an Intel 5300 card on Linux).
   Remote *nodes* are the no-extra-hardware way to get per-room sensing.
 - Movement rhythm needs a driver that refreshes the signal 3+ times a second. Many don't.
+
+## Logo and icons
+
+`wifi-Photoroom.png` is the brand logo. `python make_icons.py` removes its white background, cuts out the round
+mark, and writes `brand/`:
+
+- `favicon.ico` for the browser tab, Windows notifications, and the `.exe` icon
+- `logo_mark.png` for the page headers and the tray
+- `icon-192/512.png` and `apple-touch-icon.png` for the phone app
+- `logo_full.png`, used at the top of this README
+
+Re-run it after changing the logo.
 
 ## Settings in code
 

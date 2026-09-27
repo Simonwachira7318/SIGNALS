@@ -168,8 +168,14 @@ def log_motion(conn, ts, activity, bssid, aps):
 def notify(title, msg):
     if _plyer_notify:
         try:
-            _plyer_notify.notify(title=title, message=msg,
-                                 app_name="WiFi Sense", timeout=5)
+            try:
+                from paths import resource
+                icon = resource("brand/favicon.ico")
+                icon = str(icon) if icon.exists() else ""
+            except Exception:
+                icon = ""
+            _plyer_notify.notify(title=title, message=msg, app_name="WiFi Sense",
+                                 app_icon=icon, timeout=5)
             return
         except Exception:
             pass

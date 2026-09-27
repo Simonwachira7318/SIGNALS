@@ -90,6 +90,7 @@ import health
 import rollup
 from anomaly import UnusualDetector
 import replay
+import insights
 from rules import RuleEngine, prepare as rules_prepare
 
 try:
@@ -109,6 +110,10 @@ PAGES = {"/": "wifi_web.html", "/index.html": "wifi_web.html",
          "/devices": "devices.html", "/devices.html": "devices.html",
          "/health": "health.html", "/floorplan": "floorplan.html", "/rules": "rules.html",
          "/tuning": "tuning.html"}
+BRAND_FILES = {"logo_mark.png": "image/png", "logo_full.png": "image/png", "favicon.ico": "image/x-icon",
+               "favicon-32.png": "image/png", "icon-192.png": "image/png", "icon-512.png": "image/png",
+               "apple-touch-icon.png": "image/png"}
+RECENT_SCANS = 2400                # ~60 min of per-scan path ratios kept in memory (why-drilldown, heat trail)
 STATIC = {"/manifest.json": ("manifest.json", "application/manifest+json"),
           "/sw.js": ("sw.js", "text/javascript; charset=utf-8"),
           "/icon.svg": ("icon.svg", "image/svg+xml")}
@@ -436,6 +441,9 @@ class Sensor(threading.Thread):
         self.pending = deque()               # events posted by other threads, emitted in step()
         self.rules = None                    # RuleEngine, set by main()
         self.nodes = {}                      # name -> latest report from a remote node
+        self.recent = deque(maxlen=RECENT_SCANS)  # (epoch, idx_all, link_ratio, {bssid: (ratio, state)})
+        self.cond = threading.Condition()    # notified after every scan (live push to browsers)
+        self.cur_thresholds = {}             # bssid -> threshold (%) used on the last scan
         self.lock = threading.Lock()
         self.state = {}
         self._load()
@@ -671,6 +679,7 @@ class Sensor(threading.Thread):
             t0 = time.time()
             try:
                 self.step()
+                self.publish()
             except Exception as e:
                 print(f"[!] scan cycle failed: {type(e).__name__}: {e}")
             if time.time() - self.last_rollup > ROLLUP_EVERY:
@@ -889,6 +898,9 @@ class Sensor(threading.Thread):
         idx_all = max((r["ratio"] for r in rows), default=0.0)
         motion = bool(moving)
         self.activity.append(dict(t=ts[11:], v=round(idx_all, 2), link=round(link_ratio, 2)))
+        self.recent.append((now, round(idx_all, 3), round(link_ratio, 3),
+                            {r["bssid"]: (r["ratio"], r["state"]) for r in rows}))
+        self.cur_thresholds = {r["bssid"]: r["th"] for r in rows if r["unit"] == "%"}
         if not warming:
             self.occupancy.append(1 if motion else 0)
 
@@ -1044,7 +1056,7 @@ class Sensor(threading.Thread):
                 oui=oui.available(),
                 presence=self.presence.view(now, hold_s) if not warming else None,
                 tuning=self.devices.tuning_summary(), report=self.last_report,
-                devices_total=len(self.devices.devs),
+                devices_total=len(self.devices.devs), recent_minutes=round(len(self.recent) * SCAN_INTERVAL / 60),
                 rhythm=rhy, rate=dict(instability=rate_inst, drop=rate_drop, rx=list(self.rx_hist)),
                 unusual=self.unusual.slot_view(),
                 nodes=nodes_view,
@@ -1121,6 +1133,13 @@ class Sensor(threading.Thread):
             return sum(r["pct"] / 100 * max(0, 1 - abs(r["channel"] - ch) / 5)
                        for r in rows if r["channel"] and r["channel"] <= 14 and r["bssid"] != link_bssid)
         return min((1, 6, 11), key=load)
+
+    def publish(self):
+        with self.cond:
+            self.cond.notify_all()
+
+    def names(self):
+        return {b: (d.get("name") or d.get("ssid")) for b, d in self.devices.all().items()}
 
     def snapshot(self):
         with self.lock:
@@ -1286,6 +1305,7 @@ class Server(ThreadingHTTPServer):
     lets a second copy bind the same port and silently run a duplicate sensor."""
     allow_reuse_address = False
     daemon_threads = True
+    request_queue_size = 64          # default 5 drops bursts (page load + live stream + app pre-cache)
 
     def server_bind(self):
         if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
@@ -1304,12 +1324,34 @@ def make_handler(sensor):
                 body = body.encode()
             self.send_response(code)
             self.send_header("Content-Type", ctype)
-            self.send_header("Cache-Control", "no-store")
+            if "Cache-Control" not in (extra or {}):
+                self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
             for k, v in (extra or {}).items():
                 self.send_header(k, v)
             self.end_headers()
             self.wfile.write(body)
+
+        def _stream(self):
+            """Server-Sent Events: push the full state after every scan (heartbeat every 15 s)."""
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            last = None
+            try:
+                while True:
+                    snap = sensor.snapshot()
+                    if snap != last and snap != "{}":
+                        self.wfile.write(b"data: " + snap.encode() + b"\n\n")
+                        last = snap
+                    else:
+                        self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    with sensor.cond:
+                        sensor.cond.wait(timeout=15)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                return                                   # browser closed the page
 
         def _token_from_request(self):
             tok = self.headers.get("X-Access-Token", "")
@@ -1380,6 +1422,25 @@ def make_handler(sensor):
                     devs.sort(key=lambda d: d["last_seen"] or "", reverse=True)
                     devs.sort(key=lambda d: not d["present"])      # stable: present first, then most recent
                     return self._send(200, dict(devices=devs, tuning=sensor.devices.tuning))
+                if u.path == "/api/stream":
+                    return self._stream()
+                if u.path == "/api/why":
+                    return self._send(200, insights.why(int(qs["id"][0]), list(sensor.recent), sensor.names(),
+                                                        dict(sensor.cur_thresholds)))
+                if u.path == "/api/day":
+                    return self._send(200, insights.day(qs.get("date", [time.strftime("%Y-%m-%d")])[0]))
+                if u.path == "/api/at":
+                    return self._send(200, insights.at(float(qs["t"][0]), dict(sensor.calibration), sensor.names(),
+                                                       dict(sensor.cur_thresholds), distance_range, device_type))
+                if u.path == "/api/trail":
+                    return self._send(200, {"trail": insights.trail(list(sensor.recent),
+                                                                    _clamp(int(qs.get("minutes", ["10"])[0]), 1, 60))})
+                if u.path == "/favicon.ico" or u.path.startswith("/brand/"):
+                    name = "favicon.ico" if u.path == "/favicon.ico" else u.path[len("/brand/"):]
+                    if name not in BRAND_FILES:
+                        return self.send_error(404)
+                    return self._send(200, resource("brand/" + name).read_bytes(), BRAND_FILES[name],
+                                      {"Cache-Control": "max-age=86400"})
                 if u.path in STATIC:
                     fname, ctype = STATIC[u.path]
                     return self._send(200, resource(fname).read_bytes(), ctype)

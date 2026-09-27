@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wi-Fi Sense Floor Plan</title>
+<title>WiFi Sense Floor Plan</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/brand/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
 <style>
   :root {
@@ -60,11 +63,12 @@
 <div class="wrap">
   <header>
     <a class="btn" href="/">← Dashboard</a>
-    <h1>Floor plan</h1>
+    <img src="/brand/logo_mark.png" alt="" style="width:28px;height:28px;object-fit:contain"><h1>Floor plan</h1>
     <div class="right">
       <label class="btn" for="file">Upload plan image…</label>
       <input type="file" id="file" accept="image/png,image/jpeg" style="display:none">
       <button class="btn" id="clear-img">Remove image</button>
+      <label class="note" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="trail-on" checked> Heat trail (10 min)</label>
       <span class="note">Plan width</span><input type="number" id="width" min="2" max="200" step="0.5" value="10"><span class="note">m</span>
     </div>
   </header>
@@ -78,6 +82,7 @@
         <span><i style="background:var(--serious)"></i>Movement on that path</span>
         <span><i style="background:var(--warning)"></i>Still presence / blocked</span>
         <span><i style="background:var(--critical);opacity:.35;height:10px"></i>Sensitive zone. Overlaps = most likely area</span>
+        <span><i style="background:var(--critical);opacity:.15;height:10px"></i>Heat trail: fades over 10 min</span>
       </div>
       <p class="note">Drag items to where they really are. Movement can only disturb a path inside its shaded zone (the Fresnel zone
         between device and router), so where several disturbed zones overlap is where the movement most likely is.
@@ -96,6 +101,19 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const W = 1000;
 let H = 650, plan = { items: {}, width_m: 10, image: null }, state = null, drag = null;
+const TRAIL_S = 600;
+let trail = [];                               // {sensor, bssid, t, state} disturbed paths, last 10 min
+function addTrail(s) {
+  const now = s.now || Date.now() / 1000, bucket = Math.floor(now / 20);
+  const add = (sensor, p) => {
+    if (!["moving", "still", "blocked"].includes(p.state)) return;
+    if (!trail.some(x => x.sensor === sensor && x.bssid === p.bssid && Math.floor(x.t / 20) === bucket))
+      trail.push({ sensor, bssid: p.bssid, t: now, state: p.state });
+  };
+  if (!s.warming) (s.aps || []).forEach(p => add("you", p));
+  (s.nodes || []).filter(n => n.online).forEach(n => n.paths.forEach(p => add("node:" + n.name, p)));
+  trail = trail.filter(x => now - x.t <= TRAIL_S);
+}
 const LAMBDA = 0.125;                        // 2.4 GHz wavelength in metres
 
 async function post(path, body) {
@@ -134,7 +152,7 @@ $("palette").addEventListener("click", async ev => {
 function pathColor(st) {
   return st === "moving" ? "var(--serious)" : (st === "still" || st === "blocked") ? "var(--warning)" : "var(--muted)";
 }
-function zone(x1, y1, x2, y2, st) {
+function zone(x1, y1, x2, y2, st, fade) {
   const dx = x2 - x1, dy = y2 - y1, d = Math.hypot(dx, dy); if (d < 1) return "";
   const mpu = plan.width_m / W, dm = d * mpu;
   const bm = Math.max(0.5, 2 * Math.sqrt(LAMBDA * dm / 4));      // ~2 Fresnel zones, at least 0.5 m
@@ -142,7 +160,7 @@ function zone(x1, y1, x2, y2, st) {
   const ang = Math.atan2(dy, dx) * 180 / Math.PI;
   const col = st === "moving" ? "var(--critical)" : "var(--warning)";
   return `<ellipse cx="${(x1 + x2) / 2}" cy="${(y1 + y2) / 2}" rx="${a}" ry="${b}" transform="rotate(${ang} ${(x1 + x2) / 2} ${(y1 + y2) / 2})"
-    fill="${col}" opacity="${st === "moving" ? 0.18 : 0.12}"/>`;
+    fill="${col}" opacity="${((st === "moving" ? 0.18 : 0.12) * (fade ?? 1)).toFixed(3)}"/>`;
 }
 function draw() {
   const P = k => plan.items[k] ? { x: plan.items[k].x * W, y: plan.items[k].y * H } : null;
@@ -154,6 +172,14 @@ function draw() {
     grid += `<text x="10" y="${H - 10}" font-size="13" fill="var(--muted)">grid = 1 m</text>`;
   }
   let zones = "", lines = "", items = "";
+  if ($("trail-on").checked) {
+    const now = Date.now() / 1000;
+    for (const tr of trail) {
+      const age = now - tr.t; if (age > TRAIL_S || age < 3) continue;          // live zones are drawn below
+      const a = P(tr.sensor), b = P(tr.bssid); if (!a || !b) continue;
+      zones += zone(a.x, a.y, b.x, b.y, tr.state, 0.55 * (1 - age / TRAIL_S));
+    }
+  }
   const sensors = [{ key: "you", paths: state?.aps || [] }].concat((state?.nodes || []).map(n => ({ key: "node:" + n.name, paths: n.online ? n.paths : [] })));
   for (const s of sensors) {
     const a = P(s.key); if (!a) continue;
@@ -213,20 +239,31 @@ $("file").addEventListener("change", async () => {
 });
 $("clear-img").addEventListener("click", async () => { await post("/api/floorplan/image/clear", {}); plan.image = null; applyImage(); });
 $("width").addEventListener("change", async () => { plan.width_m = Math.max(2, +$("width").value || 10); await saveLayout(); draw(); });
+$("trail-on").addEventListener("change", draw);
 
-// ---------- live loop ----------
+// ---------- live loop (server push, polling fallback) ----------
+function onState(s) { state = s; addTrail(s); if (!drag) { draw(); renderPalette(); } }
 async function tick() {
-  try {
-    state = await (await fetch("/api/state", { cache: "no-store" })).json();
-    if (!drag) { draw(); renderPalette(); }
-  } catch {}
+  try { onState(await (await fetch("/api/state", { cache: "no-store" })).json()); } catch {}
   setTimeout(tick, 1500);
+}
+function connect() {
+  if (!("EventSource" in window)) return tick();
+  const es = new EventSource("/api/stream");
+  let fails = 0;
+  es.onopen = () => { fails = 0; };
+  es.onmessage = ev => { try { onState(JSON.parse(ev.data)); } catch {} };
+  es.onerror = () => { if (++fails >= 5) { es.close(); tick(); } };
 }
 (async () => {
   try { const t = localStorage.getItem("wifisense-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
   plan = await (await fetch("/api/floorplan", { cache: "no-store" })).json();
   $("width").value = plan.width_m;
-  applyImage(); tick();
+  try {
+    const t = await (await fetch("/api/trail?minutes=10", { cache: "no-store" })).json();
+    trail = (t.trail || []).map(x => ({ sensor: "you", bssid: x.bssid, t: x.t, state: x.state }));
+  } catch {}
+  applyImage(); connect();
 })();
 </script>
 </body>
