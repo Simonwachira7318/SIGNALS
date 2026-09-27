@@ -34,6 +34,7 @@ USAGE
 Close the window (or Ctrl+C in the console) to stop.
 """
 
+import os
 import re
 import time
 import math
@@ -41,9 +42,8 @@ import subprocess
 from collections import defaultdict, deque
 
 import pymysql
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+# matplotlib is imported lazily inside Dashboard, so wifi_web.py (which reuses
+# this module's config + DB helpers) doesn't need it installed.
 
 try:
     from plyer import notification as _plyer_notify
@@ -51,8 +51,13 @@ except Exception:
     _plyer_notify = None
 
 # ------------------------- Config -------------------------
-DB_CONFIG = dict(host="localhost", port=3306, user="root",
-                 password="", charset="utf8mb4")   # XAMPP default: blank root password
+import envfile  # noqa: E402,F401  (loads .env into os.environ)
+
+DB_CONFIG = dict(host=os.environ.get("WIFI_SENSE_DB_HOST", "localhost"),
+                 port=int(os.environ.get("WIFI_SENSE_DB_PORT", "3306")),
+                 user=os.environ.get("WIFI_SENSE_DB_USER", "root"),
+                 password=os.environ.get("WIFI_SENSE_DB_PASSWORD", ""),  # XAMPP default: blank
+                 charset="utf8mb4")
 DB_NAME   = "wifi_sense"
 
 SCAN_INTERVAL   = 1.5     # seconds between scans
@@ -185,6 +190,8 @@ class Dashboard:
         self.scan_count = 0
         self.last_notify = 0.0
 
+        import matplotlib.pyplot as plt
+        self.plt = plt
         self.fig = plt.figure(figsize=(11, 5))
         self.fig.canvas.manager.set_window_title("Wi-Fi Sensing Dashboard (passive)")
         self.ax_act = self.fig.add_subplot(1, 2, 1)
@@ -252,7 +259,8 @@ class Dashboard:
             max_d = max(max_d, d)
             ang = 2 * math.pi * i / max(1, len(items))
             self.ax_rad.plot(ang, d, "o", markersize=9)
-            self.ax_rad.annotate(f"{ssid[:12]}\n{d:.1f} m",
+            label = "".join(ch if ord(ch) <= 0xFFFF else "?" for ch in ssid[:12])  # font lacks emoji
+            self.ax_rad.annotate(f"{label}\n{d:.1f} m",
                                  xy=(ang, d), fontsize=7, ha="center")
         self.ax_rad.set_ylim(0, max_d * 1.15)
         # "you are here" at centre
@@ -262,10 +270,11 @@ class Dashboard:
 
     def run(self):
         # interval in ms; matplotlib drives the scan loop
+        from matplotlib.animation import FuncAnimation
         self.anim = FuncAnimation(self.fig, self.draw,
                                   interval=int(SCAN_INTERVAL * 1000),
                                   cache_frame_data=False)
-        plt.show()
+        self.plt.show()
 
 
 def main():
@@ -274,7 +283,8 @@ def main():
         conn = db_connect()
     except Exception as e:
         print(f"[!] Could not connect to MySQL: {e}\n"
-              f"    Make sure XAMPP's MySQL is started, then retry.")
+              f"    Make sure XAMPP's MySQL is started. If root has a password, set it first:\n"
+              f"      $env:WIFI_SENSE_DB_PASSWORD = 'yourpassword'   (PowerShell)")
         return
     print(f"OK. Logging to database '{DB_NAME}'. Opening dashboard window...")
     Dashboard(conn).run()

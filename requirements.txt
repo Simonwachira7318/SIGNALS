@@ -1,0 +1,5 @@
+# Wi-Fi Sense (Windows). Install with:  python -m pip install -r requirements.txt
+pymysql>=1.1        # MySQL / MariaDB (XAMPP)
+plyer>=2.1          # desktop notifications
+bleak>=0.22         # optional: passive Bluetooth presence panel
+matplotlib>=3.8     # optional: only for the old window version, wifi_dashboard.py

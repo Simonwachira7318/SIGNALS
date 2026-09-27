@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi Sense Floor Plan</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f3f3f1; --surface: #fcfcfb; --surface-2: #f6f6f4; --border: #e3e2de; --grid: #ecebe7;
+    --text: #0b0b0b; --text-2: #52514e; --muted: #86857f; --series: #2a78d6; --series-2: #1baf7a;
+    --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #2a2a28;
+      --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --series: #3987e5; --series-2: #199e70;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #2a2a28;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --series: #3987e5; --series-2: #199e70;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 18px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; }
+  h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  h2 { font-size: 14px; margin: 0 0 8px; font-weight: 650; }
+  .btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-2); border-radius: 8px; height: 32px;
+         padding: 0 11px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font: inherit; font-size: 13px; text-decoration: none; }
+  .btn:hover { color: var(--text); border-color: var(--muted); }
+  .btn.sm { height: 26px; font-size: 12px; padding: 0 8px; }
+  .right { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input[type=number] { font: inherit; font-size: 13px; height: 32px; width: 70px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; min-width: 0; }
+  .stage { position: relative; width: 100%; border-radius: 10px; overflow: hidden; background: var(--surface-2); touch-action: none; }
+  .stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; opacity: .85; pointer-events: none; }
+  .stage svg { position: relative; display: block; width: 100%; height: auto; }
+  .item { cursor: grab; }
+  .item:active { cursor: grabbing; }
+  .item text { font-size: 15px; font-weight: 600; fill: var(--text); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+  .palette { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .palette li { display: flex; align-items: center; gap: 8px; justify-content: space-between; font-size: 13px; padding: 6px 8px;
+                border-radius: 8px; background: var(--surface-2); }
+  .palette li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--text-2); font-size: 12px; margin-top: 10px; }
+  .legend i { display: inline-block; width: 18px; height: 4px; border-radius: 2px; vertical-align: 3px; margin-right: 6px; }
+  .note { color: var(--muted); font-size: 12px; }
+  .msg { font-size: 12.5px; color: var(--text-2); min-height: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="btn" href="/">← Dashboard</a>
+    <h1>Floor plan</h1>
+    <div class="right">
+      <label class="btn" for="file">Upload plan image…</label>
+      <input type="file" id="file" accept="image/png,image/jpeg" style="display:none">
+      <button class="btn" id="clear-img">Remove image</button>
+      <span class="note">Plan width</span><input type="number" id="width" min="2" max="200" step="0.5" value="10"><span class="note">m</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="card">
+      <div class="stage" id="stage"><img id="plan" alt="" style="display:none"><svg id="svg" viewBox="0 0 1000 650"></svg></div>
+      <div class="legend">
+        <span><i style="background:var(--series)"></i>Your laptop / node</span>
+        <span><i style="background:var(--muted)"></i>Quiet signal path</span>
+        <span><i style="background:var(--serious)"></i>Movement on that path</span>
+        <span><i style="background:var(--warning)"></i>Still presence / blocked</span>
+        <span><i style="background:var(--critical);opacity:.35;height:10px"></i>Sensitive zone. Overlaps = most likely area</span>
+      </div>
+      <p class="note">Drag items to where they really are. Movement can only disturb a path inside its shaded zone (the Fresnel zone
+        between device and router), so where several disturbed zones overlap is where the movement most likely is.
+        With a single laptop you only get one zone per router. Add a <b>node</b> in another room for real localisation.</p>
+    </section>
+    <aside class="card">
+      <h2>Place items</h2>
+      <ul class="palette" id="palette"></ul>
+      <div class="msg" id="msg" style="margin-top:10px"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const W = 1000;
+let H = 650, plan = { items: {}, width_m: 10, image: null }, state = null, drag = null;
+const LAMBDA = 0.125;                        // 2.4 GHz wavelength in metres
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json().catch(() => ({}));
+}
+const saveLayout = () => post("/api/floorplan", { items: plan.items, width_m: plan.width_m });
+
+// ---------- catalogue of placeable things ----------
+function catalogue() {
+  const list = [{ key: "you", label: "You (this laptop)", kind: "sensor" }];
+  (state?.nodes || []).forEach(n => list.push({ key: "node:" + n.name, label: `Node: ${n.name}`, kind: "sensor", online: n.online }));
+  const seen = new Set();
+  (state?.aps || []).forEach(a => { seen.add(a.bssid); list.push({ key: a.bssid, label: a.name || a.ssid, kind: "router" }); });
+  Object.keys(plan.items).forEach(k => { if (k !== "you" && !k.startsWith("node:") && !seen.has(k))
+    list.push({ key: k, label: plan.items[k].label || k, kind: "router", absent: true }); });
+  return list;
+}
+
+function renderPalette() {
+  $("palette").innerHTML = catalogue().map(c => {
+    const placed = !!plan.items[c.key];
+    const col = c.kind === "sensor" ? "var(--series)" : "var(--text-2)";
+    return `<li><span><i class="dot" style="background:${col}"></i>${esc(c.label)}${c.absent ? ' <span class="note">(not in range)</span>' : ""}${c.online === false ? ' <span class="note">(offline)</span>' : ""}</span>
+      ${placed ? `<button class="btn sm" data-rm="${esc(c.key)}">Remove</button>` : `<button class="btn sm" data-add="${esc(c.key)}" data-label="${esc(c.label)}">Place</button>`}</li>`;
+  }).join("");
+}
+$("palette").addEventListener("click", async ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.add) plan.items[b.dataset.add] = { x: 0.3 + Math.random() * 0.4, y: 0.3 + Math.random() * 0.4, label: b.dataset.label };
+  if (b.dataset.rm) delete plan.items[b.dataset.rm];
+  await saveLayout(); renderPalette(); draw();
+});
+
+// ---------- drawing ----------
+function pathColor(st) {
+  return st === "moving" ? "var(--serious)" : (st === "still" || st === "blocked") ? "var(--warning)" : "var(--muted)";
+}
+function zone(x1, y1, x2, y2, st) {
+  const dx = x2 - x1, dy = y2 - y1, d = Math.hypot(dx, dy); if (d < 1) return "";
+  const mpu = plan.width_m / W, dm = d * mpu;
+  const bm = Math.max(0.5, 2 * Math.sqrt(LAMBDA * dm / 4));      // ~2 Fresnel zones, at least 0.5 m
+  const b = bm / mpu, a = Math.sqrt((d / 2) ** 2 + b * b);
+  const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+  const col = st === "moving" ? "var(--critical)" : "var(--warning)";
+  return `<ellipse cx="${(x1 + x2) / 2}" cy="${(y1 + y2) / 2}" rx="${a}" ry="${b}" transform="rotate(${ang} ${(x1 + x2) / 2} ${(y1 + y2) / 2})"
+    fill="${col}" opacity="${st === "moving" ? 0.18 : 0.12}"/>`;
+}
+function draw() {
+  const P = k => plan.items[k] ? { x: plan.items[k].x * W, y: plan.items[k].y * H } : null;
+  let grid = "";
+  if (!plan.image) {
+    const step = W / plan.width_m;          // one line per metre
+    for (let x = 0; x <= W; x += step) grid += `<line x1="${x}" x2="${x}" y1="0" y2="${H}" stroke="var(--grid)"/>`;
+    for (let y = 0; y <= H; y += step) grid += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="var(--grid)"/>`;
+    grid += `<text x="10" y="${H - 10}" font-size="13" fill="var(--muted)">grid = 1 m</text>`;
+  }
+  let zones = "", lines = "", items = "";
+  const sensors = [{ key: "you", paths: state?.aps || [] }].concat((state?.nodes || []).map(n => ({ key: "node:" + n.name, paths: n.online ? n.paths : [] })));
+  for (const s of sensors) {
+    const a = P(s.key); if (!a) continue;
+    for (const p of s.paths) {
+      const b = P(p.bssid); if (!b) continue;
+      const st = state?.warming ? "stable" : p.state;
+      if (st !== "stable" && st !== "calibrating") zones += zone(a.x, a.y, b.x, b.y, st);
+      lines += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${pathColor(st)}" stroke-width="${st === "moving" ? 4 : 2}"
+        ${st === "stable" ? 'stroke-dasharray="6 6" opacity=".6"' : ""}/>`;
+    }
+  }
+  for (const [k, it] of Object.entries(plan.items)) {
+    const x = it.x * W, y = it.y * H, sensor = k === "you" || k.startsWith("node:");
+    const live = (state?.aps || []).find(a => a.bssid === k);
+    const label = k === "you" ? "You" : k.startsWith("node:") ? k.slice(5) : (live ? (live.name || live.ssid) : (it.label || k));
+    items += `<g class="item" data-k="${esc(k)}">
+      <circle cx="${x}" cy="${y}" r="${sensor ? 16 : 13}" fill="${sensor ? "var(--series)" : "var(--surface)"}" stroke="${sensor ? "var(--surface)" : "var(--text-2)"}" stroke-width="3"/>
+      ${sensor ? `<rect x="${x - 7}" y="${y - 5}" width="14" height="9" rx="1.5" fill="none" stroke="#fff" stroke-width="2"/><line x1="${x - 9}" x2="${x + 9}" y1="${y + 7}" y2="${y + 7}" stroke="#fff" stroke-width="2"/>`
+               : `<path d="M${x - 5} ${y + 2}a7 7 0 0 1 10 0M${x - 8} ${y - 2}a11 11 0 0 1 16 0" fill="none" stroke="var(--text-2)" stroke-width="2" stroke-linecap="round"/><circle cx="${x}" cy="${y + 5}" r="2" fill="var(--text-2)"/>`}
+      <text x="${x}" y="${y + 34}" text-anchor="middle">${esc(label)}</text></g>`;
+  }
+  $("svg").innerHTML = grid + zones + lines + items;
+}
+
+// ---------- dragging ----------
+function svgPoint(ev) {
+  const svg = $("svg"), p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+$("svg").addEventListener("pointerdown", ev => {
+  const g = ev.target.closest(".item"); if (!g) return;
+  drag = g.dataset.k; $("svg").setPointerCapture(ev.pointerId); ev.preventDefault();
+});
+$("svg").addEventListener("pointermove", ev => {
+  if (!drag) return;
+  const p = svgPoint(ev);
+  plan.items[drag].x = Math.min(1, Math.max(0, p.x / W)); plan.items[drag].y = Math.min(1, Math.max(0, p.y / H));
+  draw();
+});
+$("svg").addEventListener("pointerup", async () => { if (drag) { drag = null; await saveLayout(); $("msg").textContent = "Layout saved."; } });
+
+// ---------- image + width ----------
+function applyImage() {
+  const img = $("plan");
+  if (!plan.image) { img.style.display = "none"; H = 650; $("svg").setAttribute("viewBox", `0 0 ${W} ${H}`); draw(); return; }
+  img.onload = () => { H = Math.round(W * img.naturalHeight / img.naturalWidth); $("svg").setAttribute("viewBox", `0 0 ${W} ${H}`); img.style.display = ""; draw(); };
+  img.src = "/floorplan-image?v=" + encodeURIComponent(plan.image);
+}
+$("file").addEventListener("change", async () => {
+  const f = $("file").files[0]; if (!f) return;
+  if (f.size > 4 * 1024 * 1024) { $("msg").textContent = "Image too large (max 4 MB)."; return; }
+  const data = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+  const r = await post("/api/floorplan/image", { data });
+  if (r.ok) { plan.image = r.image; applyImage(); $("msg").textContent = "Plan image uploaded. Now set its real width in metres."; }
+  else $("msg").textContent = "Upload failed: " + (r.error || "unknown error");
+  $("file").value = "";
+});
+$("clear-img").addEventListener("click", async () => { await post("/api/floorplan/image/clear", {}); plan.image = null; applyImage(); });
+$("width").addEventListener("change", async () => { plan.width_m = Math.max(2, +$("width").value || 10); await saveLayout(); draw(); });
+
+// ---------- live loop ----------
+async function tick() {
+  try {
+    state = await (await fetch("/api/state", { cache: "no-store" })).json();
+    if (!drag) { draw(); renderPalette(); }
+  } catch {}
+  setTimeout(tick, 1500);
+}
+(async () => {
+  try { const t = localStorage.getItem("wifisense-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  plan = await (await fetch("/api/floorplan", { cache: "no-store" })).json();
+  $("width").value = plan.width_m;
+  applyImage(); tick();
+})();
+</script>
+</body>
+</html>

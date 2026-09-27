@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi Sense Rules</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f3f3f1; --surface: #fcfcfb; --surface-2: #f6f6f4; --border: #e3e2de; --grid: #ecebe7;
+    --text: #0b0b0b; --text-2: #52514e; --muted: #86857f; --series: #2a78d6; --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #262624;
+      --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --series: #3987e5;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #262624;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --series: #3987e5;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 16px; }
+  h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  h2 { font-size: 15px; margin: 0 0 4px; font-weight: 650; }
+  .btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-2); border-radius: 8px; height: 32px;
+         padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font: inherit; font-size: 13px; text-decoration: none; }
+  .btn:hover { color: var(--text); border-color: var(--muted); }
+  .btn.primary { background: var(--series); border-color: var(--series); color: #fff; }
+  .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+  .btn.danger { color: var(--critical); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .sub { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+  .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 16px; align-items: end; }
+  label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); font-weight: 600; }
+  label.f.wide { grid-column: 1 / -1; }
+  select, input[type=text], input[type=url], input[type=time], input[type=number] { font: inherit; font-size: 13px; height: 32px;
+         padding: 0 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); width: 100%; }
+  .row { display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .row input[type=time] { flex: 1; min-width: 0; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .table-wrap { overflow-x: auto; }
+  .toggle { position: relative; width: 34px; height: 19px; display: inline-block; vertical-align: middle; }
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle span { position: absolute; inset: 0; border-radius: 999px; background: var(--grid); border: 1px solid var(--border); cursor: pointer; }
+  .toggle span::after { content: ""; position: absolute; width: 13px; height: 13px; left: 2px; top: 2px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: .15s; }
+  .toggle input:checked + span { background: var(--series); border-color: var(--series); }
+  .toggle input:checked + span::after { transform: translateX(15px); background: #fff; }
+  .msg { font-size: 13px; color: var(--text-2); min-height: 20px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a class="btn" href="/">← Dashboard</a><h1>Automation rules</h1></header>
+
+  <section class="card">
+    <h2 id="form-title">New rule</h2>
+    <p class="sub">When an event happens (optionally only in away mode or during certain hours), do something.</p>
+    <div class="presets">
+      <button class="btn sm" data-p="lights">💡 Lights on when someone arrives (Home Assistant webhook)</button>
+      <button class="btn sm" data-p="night">🔔 Beep on movement at night</button>
+      <button class="btn sm" data-p="away">📱 Telegram when the room gets occupied while away</button>
+      <button class="btn sm" data-p="odd">⚠️ Desktop alert on unusual activity</button>
+    </div>
+    <div class="form">
+      <input type="hidden" id="id">
+      <label class="f">Name<input type="text" id="name" maxlength="80" placeholder="e.g. Hall lights"></label>
+      <label class="f">When
+        <select id="trig">
+          <option value="motion">Movement starts</option><option value="unusual">Unusual activity</option>
+          <option value="occupied">Room becomes occupied</option><option value="empty">Room becomes empty</option>
+          <option value="room_motion">Movement in another room (node)</option>
+          <option value="new_device">Unknown device appears</option><option value="arrived">Known device arrives</option>
+          <option value="left">Device leaves</option><option value="security">Security alert</option>
+          <option value="health">Wi-Fi problem</option><option value="blocked">Path blocked</option>
+          <option value="still">Still presence</option><option value="ble">Bluetooth devices nearby</option>
+          <option value="calm">Movement stops</option><option value="any">Any event</option>
+        </select></label>
+      <label class="f">Away mode
+        <select id="away"><option value="any">Either</option><option value="on">Only when away</option><option value="off">Only when home</option></select></label>
+      <label class="f">Only between (optional)
+        <span class="row"><input type="time" id="start_hm"> – <input type="time" id="end_hm"></span></label>
+      <label class="f">Then
+        <select id="action"><option value="webhook">Call a webhook</option><option value="telegram">Send Telegram message</option>
+          <option value="desktop">Desktop notification</option><option value="sound">Play a sound here</option></select></label>
+      <label class="f">Cooldown (s)<input type="number" id="cooldown_s" min="0" max="86400" value="60"></label>
+      <label class="f wide" id="target-wrap">Webhook URL
+        <input type="url" id="target" placeholder="http://homeassistant.local:8123/api/webhook/wifi_sense_motion"></label>
+      <div class="row"><button class="btn primary" id="save">Save rule</button><button class="btn" id="reset">Clear</button></div>
+    </div>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <section class="card">
+    <h2>Your rules</h2>
+    <p class="sub">Webhooks receive JSON: <code>{"source":"wifi-sense","rule","event","severity","title","message","ts"}</code>.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>On</th><th>Name</th><th>When</th><th>Conditions</th><th>Then</th><th>Fired</th><th></th></tr></thead>
+      <tbody id="rows"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+    </table></div>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const FIELDS = ["id", "name", "trig", "away", "start_hm", "end_hm", "action", "target", "cooldown_s"];
+let rules = [];
+const label = (sel, v) => { const o = [...$(sel).options].find(o => o.value === v); return o ? o.text : v; };
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json().catch(() => ({ error: r.status }));
+}
+function syncTarget() { $("target-wrap").style.display = $("action").value === "webhook" ? "" : "none"; }
+$("action").addEventListener("change", syncTarget);
+
+function fill(r) {
+  const DEF = { trig: "motion", away: "any", action: "desktop", cooldown_s: 60 };   // selects must never be blank
+  FIELDS.forEach(f => $(f).value = r[f] ?? DEF[f] ?? "");
+  $("form-title").textContent = r.id ? `Edit rule #${r.id}` : "New rule"; syncTarget();
+}
+const PRESETS = {
+  lights: { name: "Lights on when someone arrives", trig: "occupied", away: "off", start_hm: "18:00", end_hm: "06:00", action: "webhook", target: "http://homeassistant.local:8123/api/webhook/wifi_sense_occupied", cooldown_s: 600 },
+  night:  { name: "Beep on movement at night", trig: "motion", away: "any", start_hm: "00:00", end_hm: "05:30", action: "sound", cooldown_s: 120 },
+  away:   { name: "Phone: room occupied while away", trig: "occupied", away: "on", action: "telegram", cooldown_s: 300 },
+  odd:    { name: "Unusual activity alert", trig: "unusual", away: "any", action: "desktop", cooldown_s: 300 },
+};
+document.querySelector(".presets").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-p]"); if (b) fill({ ...PRESETS[b.dataset.p], id: "" });
+});
+$("reset").addEventListener("click", () => fill({}));
+$("save").addEventListener("click", async () => {
+  const body = {}; FIELDS.forEach(f => body[f] = $(f).value);
+  body.enabled = true; body.cooldown_s = +body.cooldown_s || 0;
+  if (body.id) { const old = rules.find(r => r.id == body.id); if (old) body.enabled = old.enabled; }
+  const r = await post("/api/rules", body);
+  $("msg").textContent = r.ok ? "Saved." : "Not saved: " + (r.error || "unknown error");
+  if (r.ok) { fill({}); load(); }
+});
+
+function render() {
+  $("rows").innerHTML = rules.map(r => `<tr>
+    <td><label class="toggle"><input type="checkbox" data-en="${r.id}"${r.enabled ? " checked" : ""} aria-label="Enabled"><span></span></label></td>
+    <td><b>${esc(r.name)}</b></td>
+    <td>${esc(label("trig", r.trig))}</td>
+    <td class="muted">${r.away === "on" ? "away only" : r.away === "off" ? "home only" : "any mode"}${r.start_hm ? ` · ${esc(r.start_hm)}–${esc(r.end_hm)}` : ""} · cooldown ${r.cooldown_s}s</td>
+    <td>${esc(label("action", r.action))}${r.target ? `<div class="muted" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.target)}">${esc(r.target)}</div>` : ""}</td>
+    <td class="muted">${r.fired_count}×${r.last_fired ? `<br>${esc(r.last_fired.slice(5, 16))}` : ""}</td>
+    <td style="white-space:nowrap"><button class="btn sm" data-test="${r.id}">Test</button> <button class="btn sm" data-edit="${r.id}">Edit</button>
+      <button class="btn sm danger" data-del="${r.id}">Delete</button></td></tr>`).join("")
+    || `<tr><td colspan="7" class="muted">No rules yet. Start from a preset above.</td></tr>`;
+}
+$("rows").addEventListener("click", async ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.edit) fill(rules.find(r => r.id == b.dataset.edit));
+  if (b.dataset.del && confirm("Delete this rule?")) { await post("/api/rules/delete", { id: +b.dataset.del }); load(); }
+  if (b.dataset.test) { $("msg").textContent = "Testing…"; const r = await post("/api/rules/test", { id: +b.dataset.test });
+    $("msg").textContent = r.ok ? "Test fired successfully." : "Test failed: " + (r.error || "unknown error"); }
+});
+$("rows").addEventListener("change", async ev => {
+  const id = ev.target.dataset.en; if (!id) return;
+  const r = rules.find(x => x.id == id); await post("/api/rules", { ...r, enabled: ev.target.checked }); load();
+});
+async function load() {
+  try { rules = (await (await fetch("/api/rules", { cache: "no-store" })).json()).rules || []; render(); }
+  catch { $("rows").innerHTML = `<tr><td colspan="7" class="muted">Could not load rules. Is wifi_web.py running?</td></tr>`; }
+}
+try { const t = localStorage.getItem("wifisense-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+fill({}); load();
+</script>
+</body>
+</html>

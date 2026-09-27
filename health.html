@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi Sense Health</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f3f3f1; --surface: #fcfcfb; --surface-2: #f6f6f4; --border: #e3e2de; --grid: #ecebe7;
+    --text: #0b0b0b; --text-2: #52514e; --muted: #86857f; --s1: #2a78d6; --s2: #1baf7a; --critical: #d03b3b;
+    --warning: #fab219; --warning-bg: #fdf3dc; --good: #0ca30c; --good-bg: #e7f5e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #262624;
+      --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --s1: #3987e5; --s2: #199e70;
+      --warning-bg: #302610; --good-bg: #142a16;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #262624;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --s1: #3987e5; --s2: #199e70;
+    --warning-bg: #302610; --good-bg: #142a16;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 18px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 16px; }
+  h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  h2 { font-size: 15px; margin: 0; font-weight: 650; }
+  .btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-2); border-radius: 8px; height: 32px;
+         padding: 0 11px; display: inline-flex; align-items: center; cursor: pointer; font: inherit; font-size: 13px; text-decoration: none; }
+  select { font: inherit; font-size: 13px; height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; min-width: 0; }
+  .sub { color: var(--muted); font-size: 12px; margin: 2px 0 10px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .tile span { color: var(--muted); font-size: 12px; }
+  svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .gridline { stroke: var(--grid); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--text-2); font-size: 12px; margin-top: 6px; }
+  .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: 3px; margin-right: 5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--grid); }
+  td.t { white-space: nowrap; color: var(--text-2); font-variant-numeric: tabular-nums; width: 1%; }
+  .note { color: var(--muted); font-size: 12px; }
+  #tip { position: fixed; pointer-events: none; display: none; background: var(--surface); border: 1px solid var(--border);
+         border-radius: 8px; padding: 7px 10px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="btn" href="/">← Dashboard</a><h1>Wi-Fi health</h1>
+    <select id="hours" style="margin-left:auto"><option value="6">Last 6 h</option><option value="24" selected>Last 24 h</option><option value="168">Last 7 days</option></select>
+  </header>
+  <section class="tiles" id="tiles"></section>
+  <section class="grid2">
+    <div class="card"><h2>Signal strength</h2><p class="sub">Your connection's signal (dBm, higher = better)</p><svg id="c-rssi" class="chart" viewBox="0 0 520 200"></svg></div>
+    <div class="card"><h2>Link speed</h2><p class="sub">Negotiated rates (Mbps)</p><svg id="c-rate" class="chart" viewBox="0 0 520 200"></svg>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Download (rx)</span><span><i style="background:var(--s2)"></i>Upload (tx)</span></div></div>
+    <div class="card"><h2>Latency</h2><p class="sub">Ping time (ms). Red dots mark lost packets.</p><svg id="c-lat" class="chart" viewBox="0 0 520 200"></svg>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Router</span><span><i style="background:var(--s2)"></i>Internet (1.1.1.1)</span></div></div>
+    <div class="card"><h2>Worst hours of the day</h2><p class="sub">Average internet latency by hour, last 7 days</p><svg id="c-hour" class="chart" viewBox="0 0 520 200"></svg></div>
+  </section>
+  <section class="card"><h2>Connection events</h2><p class="sub">Disconnects, reconnects, roaming and slow periods</p>
+    <table><tbody id="events"></tbody></table></section>
+  <p class="note">Latency test: pings your router and 1.1.1.1 (3 pings each) once a minute (switch it off in Alerts &amp; settings). That's ordinary network traffic, not a radio scan.</p>
+</div>
+<div id="tip"></div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const parse = t => new Date(t.replace(" ", "T")).getTime();
+
+function lineChart(id, rows, series, opts = {}) {
+  const W = 520, H = 200, l = 40, r = 10, t = 10, b = 26, pw = W - l - r, ph = H - t - b;
+  const pts = rows.filter(row => series.some(s => row[s.k] != null));
+  if (pts.length < 2) { $(id).innerHTML = `<text class="axis" x="${W / 2}" y="${H / 2}" text-anchor="middle">Collecting data (one sample a minute)…</text>`; return; }
+  const t0 = parse(pts[0].ts), t1 = parse(pts.at(-1).ts);
+  const vals = pts.flatMap(p => series.map(s => p[s.k]).filter(v => v != null));
+  let lo = opts.lo ?? Math.min(...vals), hi = Math.max(...vals); if (hi === lo) { hi += 1; lo -= 1; }
+  const X = ts => l + (parse(ts) - t0) / Math.max(1, t1 - t0) * pw, Y = v => t + ph - (v - lo) / (hi - lo) * ph;
+  let g = "";
+  for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4;
+    g += `<line class="gridline" x1="${l}" x2="${l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="axis" x="${l - 5}" y="${Y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`; }
+  const fmt = ts => { const d = new Date(parse(ts)); return (t1 - t0 > 36e5 * 30 ? d.toLocaleDateString(undefined, { weekday: "short" }) + " " : "") + d.toTimeString().slice(0, 5); };
+  g += `<text class="axis" x="${l}" y="${H - 6}">${fmt(pts[0].ts)}</text><text class="axis" x="${l + pw}" y="${H - 6}" text-anchor="end">${fmt(pts.at(-1).ts)}</text>`;
+  for (const s of series) {
+    let d = "", pen = false;
+    let prevT = null;
+    for (const p of pts) {
+      const tt = parse(p.ts);
+      if (p[s.k] == null || (prevT !== null && tt - prevT > 180000)) pen = false;   // gap > 3 min: don't bridge it
+      prevT = tt;
+      if (p[s.k] == null) continue;
+      d += `${pen ? "L" : "M"}${X(p.ts).toFixed(1)},${Y(p[s.k]).toFixed(1)}`; pen = true;
+    }
+    g += `<path d="${d}" fill="none" stroke="${s.c}" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+  if (opts.loss) for (const p of pts) if (p.loss > 0) g += `<circle cx="${X(p.ts)}" cy="${t + ph}" r="4" fill="var(--critical)"><title>${esc(p.ts)}: ${p.loss}% lost</title></circle>`;
+  $(id).innerHTML = g;
+}
+
+function hourChart(by) {
+  const W = 520, H = 200, l = 40, t = 10, b = 26, pw = W - l - 10, ph = H - t - b, bw = pw / 24;
+  const m = {}; by.forEach(r => m[r.h] = r);
+  const vals = by.map(r => r.net).filter(v => v != null);
+  if (!vals.length) { $("c-hour").innerHTML = `<text class="axis" x="${W / 2}" y="${H / 2}" text-anchor="middle">Needs latency samples across the day</text>`; return; }
+  const hi = Math.max(...vals) * 1.1, Y = v => t + ph - v / hi * ph, worst = Math.max(...vals);
+  let g = "";
+  for (let i = 0; i <= 3; i++) { const v = hi * i / 3; g += `<line class="gridline" x1="${l}" x2="${l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="axis" x="${l - 5}" y="${Y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`; }
+  for (let h = 0; h < 24; h++) {
+    const r = m[h]; if (r && r.net != null) {
+      const x = l + h * bw + 1, w = bw - 2, y = Y(r.net);
+      g += `<rect x="${x}" y="${y}" width="${w}" height="${t + ph - y}" rx="3" fill="${r.net === worst ? "var(--critical)" : "var(--s1)"}"><title>${String(h).padStart(2, "0")}:00: ${r.net} ms avg, ${r.loss ?? 0}% loss (${r.n} samples)</title></rect>`;
+    }
+    if (h % 3 === 0) g += `<text class="axis" x="${l + h * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${String(h).padStart(2, "0")}</text>`;
+  }
+  $("c-hour").innerHTML = g;
+}
+
+async function load() {
+  const d = await (await fetch(`/api/health?hours=${$("hours").value}`, { cache: "no-store" })).json();
+  const rows = d.rows, last = rows.at(-1) || {};
+  const avg = k => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : "–"; };
+  const lossy = rows.filter(r => r.loss > 0).length;
+  $("tiles").innerHTML = [
+    [last.rssi != null ? last.rssi + " dBm" : "–", "signal now"], [avg("gw") + " ms", "avg router latency"],
+    [avg("net") + " ms", "avg internet latency"], [lossy, "samples with packet loss"],
+    [d.events.filter(e => /disconnected/i.test(e.msg)).length, "disconnects"], [rows.length, "samples"],
+  ].map(([v, s]) => `<div class="card tile" style="margin:0"><b>${v}</b><span>${s}</span></div>`).join("");
+  lineChart("c-rssi", rows, [{ k: "rssi", c: "var(--s1)" }]);
+  lineChart("c-rate", rows, [{ k: "rx", c: "var(--s1)" }, { k: "tx", c: "var(--s2)" }], { lo: 0 });
+  lineChart("c-lat", rows, [{ k: "gw", c: "var(--s1)" }, { k: "net", c: "var(--s2)" }], { lo: 0, loss: true });
+  hourChart(d.by_hour);
+  $("events").innerHTML = d.events.map(e => `<tr><td class="t">${esc(e.ts)}</td><td>${esc(e.msg)}</td></tr>`).join("")
+    || `<tr><td class="note">No connection problems recorded in this period.</td></tr>`;
+}
+$("hours").addEventListener("change", load);
+try { const t = localStorage.getItem("wifisense-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+load(); setInterval(load, 60000);
+</script>
+</body>
+</html>

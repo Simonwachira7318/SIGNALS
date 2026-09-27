@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi Sense Tuning Lab</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f3f3f1; --surface: #fcfcfb; --surface-2: #f6f6f4; --border: #e3e2de; --grid: #ecebe7;
+    --text: #0b0b0b; --text-2: #52514e; --muted: #86857f; --series: #2a78d6; --series-soft: #cde2fb;
+    --good: #0ca30c; --good-bg: #e7f5e7; --critical: #d03b3b; --warning-bg: #fdf3dc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #262624;
+      --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --series: #3987e5; --series-soft: #1c3a5e;
+      --good-bg: #142a16; --warning-bg: #302610;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #262624;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --series: #3987e5; --series-soft: #1c3a5e;
+    --good-bg: #142a16; --warning-bg: #302610;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 16px; }
+  h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  h2 { font-size: 15px; margin: 0; font-weight: 650; }
+  .btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-2); border-radius: 8px; height: 32px;
+         padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font: inherit; font-size: 13px; text-decoration: none; }
+  .btn:hover { color: var(--text); border-color: var(--muted); }
+  .btn.primary { background: var(--series); border-color: var(--series); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .sub { color: var(--muted); font-size: 12px; margin: 2px 0 12px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; }
+  label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); font-weight: 600; }
+  select, input[type=number] { font: inherit; font-size: 13px; height: 32px; padding: 0 8px; border-radius: 8px;
+         border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  input[type=range] { width: 220px; accent-color: var(--series); }
+  .val { font-variant-numeric: tabular-nums; color: var(--text); }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+  svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .gridline { stroke: var(--grid); }
+  .lbl { fill: var(--text); font-size: 11px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: right; color: var(--muted); font-weight: 600; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  tr.cur td { background: var(--surface-2); font-weight: 600; }
+  tr.pick td { cursor: pointer; } tr.pick:hover td { background: var(--surface-2); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .kpi { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+  .kpi b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .kpi span { color: var(--muted); font-size: 12px; }
+  .note { color: var(--muted); font-size: 12px; }
+  .msg { font-size: 13px; color: var(--text-2); min-height: 20px; }
+  #tip { position: fixed; pointer-events: none; display: none; background: var(--surface); border: 1px solid var(--border);
+         border-radius: 8px; padding: 7px 10px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="btn" href="/">← Dashboard</a>
+    <h1>Tuning lab</h1>
+  </header>
+
+  <section class="card">
+    <h2>Replay your recorded scans</h2>
+    <p class="sub">See how many motion episodes each sensitivity would have produced on your real data, and how well it matches your 👍/👎 feedback, before you change anything.</p>
+    <div class="controls">
+      <label class="f">Period
+        <select id="hours"><option value="6">Last 6 h</option><option value="24" selected>Last 24 h</option><option value="72">Last 72 h</option></select></label>
+      <label class="f">Sensitivity scale <span><input type="range" id="scale" min="0.5" max="3" step="0.05" value="1"> <span class="val" id="scale-v">×1.00</span></span>
+        <span class="note">Higher = fewer alerts (thresholds multiplied)</span></label>
+      <label class="f">Episode gap (s)
+        <input type="number" id="gap" min="5" max="600" value="30"></label>
+      <button class="btn primary" id="run">Run replay</button>
+      <button class="btn" id="apply" disabled>Apply to live detector</button>
+    </div>
+    <div class="msg" id="msg" style="margin-top:10px"></div>
+  </section>
+
+  <section class="grid2" id="results" style="display:none">
+    <div class="card">
+      <h2>Episodes at each sensitivity</h2>
+      <p class="sub">Click a row, or a point on the chart, to pick it. The highlighted row is your selection.</p>
+      <svg id="sweep" class="chart" viewBox="0 0 520 230" role="img" aria-label="Episodes by sensitivity"></svg>
+      <table style="margin-top:10px"><thead><tr><th>Scale</th><th>Episodes</th><th>Motion min</th><th>Keeps 👍</th><th>Drops 👎</th></tr></thead>
+        <tbody id="rows"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Selected setting</h2>
+      <div class="kpis" id="kpis"></div>
+      <p class="sub">Episodes per hour with the selected setting</p>
+      <svg id="hourly" class="chart" viewBox="0 0 420 200" role="img" aria-label="Episodes per hour"></svg>
+      <p class="note" id="note"></p>
+    </div>
+  </section>
+</div>
+<div id="tip"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let last = null, liveScale = 1, liveGap = 30;
+
+function tipAt(ev, html) { const t = $("tip"); t.innerHTML = html; t.style.display = "block";
+  t.style.left = (ev.clientX + 12) + "px"; t.style.top = (ev.clientY + 12) + "px"; }
+const hideTip = () => $("tip").style.display = "none";
+
+$("scale").addEventListener("input", () => $("scale-v").textContent = "×" + (+$("scale").value).toFixed(2));
+
+async function run() {
+  $("run").disabled = true; $("msg").textContent = "Replaying…";
+  try {
+    const q = `hours=${$("hours").value}&gap=${$("gap").value}&scale=${$("scale").value}`;
+    const r = await (await fetch(`/api/replay?${q}`, { cache: "no-store" })).json();
+    if (!r.ok) { $("msg").textContent = r.message || r.error; $("results").style.display = "none"; return; }
+    last = r; draw(r);
+    $("msg").textContent = `Replayed ${r.scans.toLocaleString()} scans over ${r.span_h} h on ${r.paths} signal paths. Feedback in this period: ${r.labels.confirmed} 👍, ${r.labels.false} 👎.`;
+    $("apply").disabled = false;
+  } catch (e) { $("msg").textContent = "Replay failed: " + e.message; }
+  finally { $("run").disabled = false; }
+}
+
+function draw(r) {
+  $("results").style.display = "";
+  const sel = +$("scale").value;
+  // sweep chart
+  const W = 520, H = 230, l = 40, rr = 12, t = 14, b = 30, pw = W - l - rr, ph = H - t - b;
+  const xs = r.sweep.map(s => s.scale), maxE = Math.max(1, ...r.sweep.map(s => s.episodes));
+  const X = v => l + (v - 0.5) / (3 - 0.5) * pw, Y = v => t + ph - v / maxE * ph;
+  let g = "";
+  for (let i = 0; i <= 4; i++) { const v = Math.round(maxE * i / 4);
+    g += `<line class="gridline" x1="${l}" x2="${l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="axis" x="${l - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`; }
+  [0.5, 1, 1.5, 2, 2.5, 3].forEach(v => g += `<text class="axis" x="${X(v)}" y="${H - 10}" text-anchor="middle">×${v}</text>`);
+  g += `<line x1="${X(liveScale)}" x2="${X(liveScale)}" y1="${t}" y2="${t + ph}" stroke="var(--muted)" stroke-dasharray="4 4"/>
+        <text class="axis" x="${X(liveScale) + 4}" y="${t + 10}">live now</text>`;
+  g += `<path d="${r.sweep.map((s, i) => `${i ? "L" : "M"}${X(s.scale)},${Y(s.episodes)}`).join("")}" fill="none" stroke="var(--series)" stroke-width="2"/>`;
+  r.sweep.forEach(s => {
+    const on = Math.abs(s.scale - sel) < 1e-6;
+    g += `<circle cx="${X(s.scale)}" cy="${Y(s.episodes)}" r="${on ? 6 : 4.5}" fill="${on ? "var(--text)" : "var(--series)"}" stroke="var(--surface)" stroke-width="2" data-s="${s.scale}" style="cursor:pointer"/>`;
+  });
+  $("sweep").innerHTML = g;
+  // table
+  $("rows").innerHTML = r.sweep.map(s => `<tr class="pick${Math.abs(s.scale - sel) < 1e-6 ? " cur" : ""}" data-s="${s.scale}">
+    <td>×${s.scale.toFixed(2)}${Math.abs(s.scale - liveScale) < 1e-6 ? " (live)" : ""}</td><td>${s.episodes}</td><td>${s.motion_min}</td>
+    <td>${r.labels.confirmed ? `${s.keep_confirmed}/${r.labels.confirmed}` : "–"}</td>
+    <td>${r.labels.false ? `${s.drop_false}/${r.labels.false}` : "–"}</td></tr>`).join("");
+  // selected kpis
+  const cur = r.sweep.find(s => Math.abs(s.scale - sel) < 1e-6) || r.sweep[0];
+  const live = r.sweep.find(s => Math.abs(s.scale - liveScale) < 1e-6);
+  $("kpis").innerHTML = `<div class="kpi"><b>${cur.episodes}</b><span>episodes${live && live !== cur ? ` (live: ${live.episodes})` : ""}</span></div>
+    <div class="kpi"><b>${cur.motion_min}</b><span>minutes with motion</span></div>
+    <div class="kpi"><b>${r.labels.confirmed ? cur.keep_confirmed + "/" + r.labels.confirmed : "–"}</b><span>confirmed kept</span></div>
+    <div class="kpi"><b>${r.labels.false ? cur.drop_false + "/" + r.labels.false : "–"}</b><span>false alarms dropped</span></div>`;
+  // hourly bars (for the selected scale the server computed "chosen" only for the requested scale)
+  const hr = r.chosen.hourly, maxH = Math.max(1, ...hr.map(h => h[1]));
+  const W2 = 420, H2 = 200, l2 = 30, t2 = 10, b2 = 28, pw2 = W2 - l2 - 8, ph2 = H2 - t2 - b2, bw = pw2 / Math.max(1, hr.length);
+  let g2 = "";
+  for (let i = 0; i <= 3; i++) { const v = Math.round(maxH * i / 3), y = t2 + ph2 - v / maxH * ph2;
+    g2 += `<line class="gridline" x1="${l2}" x2="${l2 + pw2}" y1="${y}" y2="${y}"/><text class="axis" x="${l2 - 5}" y="${y + 4}" text-anchor="end">${v}</text>`; }
+  hr.forEach(([h, n], i) => {
+    const x = l2 + i * bw + 1, w = Math.max(2, bw - 2), y = t2 + ph2 - n / maxH * ph2;
+    g2 += `<rect x="${x}" y="${y}" width="${w}" height="${t2 + ph2 - y}" rx="${Math.min(3, w / 2)}" fill="var(--series)"><title>${esc(h)}: ${n}</title></rect>`;
+    if (hr.length <= 12 || i % Math.ceil(hr.length / 8) === 0) g2 += `<text class="axis" x="${x + w / 2}" y="${H2 - 8}" text-anchor="middle">${esc(h.slice(11, 13))}h</text>`;
+  });
+  if (!hr.length) g2 += `<text class="axis" x="${W2 / 2}" y="${H2 / 2}" text-anchor="middle">No episodes at this setting</text>`;
+  $("hourly").innerHTML = g2;
+  $("note").textContent = r.note + (Math.abs(r.chosen.scale - sel) > 1e-6 ? " (Hourly chart is for the last run's scale. Press Run to refresh.)" : "");
+}
+
+function pick(s) { $("scale").value = s; $("scale-v").textContent = "×" + (+s).toFixed(2); if (last) draw(last); }
+$("rows").addEventListener("click", ev => { const tr = ev.target.closest("tr[data-s]"); if (tr) pick(tr.dataset.s); });
+$("sweep").addEventListener("click", ev => { const c = ev.target.closest("circle[data-s]"); if (c) pick(c.dataset.s); });
+$("sweep").addEventListener("mousemove", ev => {
+  const c = ev.target.closest("circle[data-s]"); if (!c || !last) return hideTip();
+  const s = last.sweep.find(x => x.scale == c.dataset.s);
+  tipAt(ev, `<b>×${s.scale}</b><br>${s.episodes} episodes · ${s.motion_min} min motion`);
+});
+$("sweep").addEventListener("mouseleave", hideTip);
+$("run").addEventListener("click", run);
+$("apply").addEventListener("click", async () => {
+  const body = { motion_threshold_scale: +$("scale").value, episode_gap_s: +$("gap").value };
+  const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (r.ok) { liveScale = j.motion_threshold_scale; liveGap = j.episode_gap_s; $("msg").textContent = `Applied: sensitivity ×${liveScale}, episode gap ${liveGap} s. The live detector uses it from the next scan.`; if (last) draw(last); }
+  else $("msg").textContent = "Could not apply: " + (j.error || r.status);
+});
+
+(async () => {
+  try { const t = localStorage.getItem("wifisense-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  try {
+    const s = await (await fetch("/api/state", { cache: "no-store" })).json();
+    liveScale = s.settings.motion_threshold_scale; liveGap = s.settings.episode_gap_s;
+    $("scale").value = liveScale; $("scale-v").textContent = "×" + (+liveScale).toFixed(2); $("gap").value = liveGap;
+  } catch {}
+  run();
+})();
+</script>
+</body>
+</html>

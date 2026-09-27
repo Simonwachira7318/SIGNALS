@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi Sense Devices</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f3f3f1; --surface: #fcfcfb; --surface-2: #f6f6f4; --border: #e3e2de; --grid: #ecebe7;
+    --text: #0b0b0b; --text-2: #52514e; --muted: #86857f; --series: #2a78d6;
+    --good: #0ca30c; --good-bg: #e7f5e7; --info: #2a78d6; --info-bg: #e3eefb; --neutral: #86857f; --neutral-bg: #efeeeb;
+    --warning: #fab219; --warning-bg: #fdf3dc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #262624;
+      --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --series: #3987e5; --info: #3987e5;
+      --good-bg: #142a16; --info-bg: #15263b; --neutral-bg: #242422; --warning-bg: #302610;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #212120; --border: #2d2d2a; --grid: #262624;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c85; --series: #3987e5; --info: #3987e5;
+    --good-bg: #142a16; --info-bg: #15263b; --neutral-bg: #242422; --warning-bg: #302610;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1300px; margin: 0 auto; padding: 18px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 16px; }
+  h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  .right { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-2); border-radius: 8px; height: 32px;
+         padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font: inherit; font-size: 12.5px; text-decoration: none; }
+  .btn:hover { color: var(--text); border-color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 12.5px; border: 0; background: var(--surface); color: var(--text-2); padding: 6px 12px; cursor: pointer; }
+  .seg button.on { background: var(--text); color: var(--surface); }
+  input[type=search], input[type=text] { font: inherit; font-size: 13px; height: 32px; padding: 0 9px; border-radius: 8px;
+         border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  input.name { width: 150px; height: 28px; }
+  input.name:placeholder-shown { border-style: dashed; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; min-width: 0; }
+  .sub { color: var(--muted); font-size: 12px; margin: 2px 0 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--grid); vertical-align: middle; white-space: nowrap; }
+  tr:hover td { background: var(--surface-2); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--grid); border: 1px solid var(--border); }
+  .dot.on { background: var(--good); border-color: var(--good); box-shadow: 0 0 0 3px var(--good-bg); }
+  .mono { font-family: Consolas, ui-monospace, monospace; font-size: 12px; color: var(--text-2); }
+  .muted { color: var(--muted); font-size: 12px; }
+  .toggle { position: relative; width: 34px; height: 19px; display: inline-block; vertical-align: middle; }
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle span { position: absolute; inset: 0; border-radius: 999px; background: var(--grid); border: 1px solid var(--border); cursor: pointer; }
+  .toggle span::after { content: ""; position: absolute; width: 13px; height: 13px; left: 2px; top: 2px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: .15s; }
+  .toggle input:checked + span { background: var(--series); border-color: var(--series); }
+  .toggle input:checked + span::after { transform: translateX(15px); background: #fff; }
+  .toggle input:focus-visible + span { outline: 2px solid var(--series); outline-offset: 2px; }
+  svg.grid { display: block; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); display: none; background: var(--text); color: var(--surface);
+           border-radius: 10px; padding: 9px 14px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="btn" href="/">← Dashboard</a>
+    <h1>Devices</h1>
+    <div class="right">
+      <input type="search" id="q" placeholder="Search name, network, vendor…">
+      <div class="seg" id="filter">
+        <button data-f="all" class="on">All</button><button data-f="present">Present now</button>
+        <button data-f="unknown">Unknown</button><button data-f="known">Known</button><button data-f="muted">Muted</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="card">
+    <p class="sub" style="margin-top:0">
+      Every Wi-Fi source ever seen. <b>Name</b> a device to make it <i>known</i>: it then gives a quiet "arrived" note instead of an
+      unknown-device alert. <b>Trusted</b> devices never raise security alerts (e.g. your own mesh node). <b>Muted</b> devices raise no
+      appear/leave events at all. Changes save instantly.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>Name</th><th>Network · BSSID</th><th>Type · vendor</th>
+          <th>Last 7 days (hours seen)</th><th>Seen</th><th>Trusted</th><th>Muted</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="8" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="legend"><span><i style="background:var(--series)"></i>seen during that hour</span>
+      <span><i style="background:var(--grid)"></i>not seen</span><span>Rows = days (oldest at top), columns = hours 00–23</span></div>
+  </section>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TYPE = { router: "Router", phone: "Phone hotspot", virtual: "Hotspot / virtual AP", direct: "Wi-Fi Direct", hidden: "Hidden network" };
+let data = [], filter = "all";
+
+function toast(m) { const t = $("toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = "none", 3500); }
+
+function gridSvg(g) {
+  const cw = 5, ch = 5, gap = 1, W = 24 * (cw + gap), H = 7 * (ch + gap);
+  let o = `<svg class="grid" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="Presence over 7 days">`;
+  for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) {
+    const on = g && g[d] && g[d][h];
+    o += `<rect x="${h * (cw + gap)}" y="${d * (ch + gap)}" width="${cw}" height="${ch}" rx="1" fill="${on ? "var(--series)" : "var(--grid)"}"/>`;
+  }
+  return o + "</svg>";
+}
+
+function render() {
+  const q = $("q").value.trim().toLowerCase();
+  const rows = data.filter(d =>
+    (filter === "all" || (filter === "present" && d.present) || (filter === "unknown" && !d.name && !d.trusted)
+      || (filter === "known" && (d.name || d.trusted)) || (filter === "muted" && d.muted))
+    && (!q || [d.name, d.ssid, d.vendor, d.bssid].some(v => (v || "").toLowerCase().includes(q))));
+  $("rows").innerHTML = rows.map(d => `<tr>
+    <td title="${d.present ? "In range now" : "Not in range"}"><span class="dot${d.present ? " on" : ""}"></span></td>
+    <td><input class="name" type="text" maxlength="64" placeholder="Add a name…" value="${esc(d.name || "")}" data-b="${esc(d.bssid)}"></td>
+    <td>${esc(d.ssid || "")}<div class="mono">${esc(d.bssid)}</div></td>
+    <td>${esc(TYPE[d.dtype] || d.dtype || "Wi-Fi source")}<div class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${esc(d.vendor || "")}">${esc(d.vendor || "Unknown vendor")}</div></td>
+    <td>${gridSvg(d.grid)}</td>
+    <td class="muted">last ${esc((d.last_seen || "").slice(5, 16))}<br>first ${esc((d.first_seen || "").slice(5, 16))}</td>
+    <td><label class="toggle"><input type="checkbox" data-t="trusted" data-b="${esc(d.bssid)}"${d.trusted ? " checked" : ""} aria-label="Trusted"><span></span></label></td>
+    <td><label class="toggle"><input type="checkbox" data-t="muted" data-b="${esc(d.bssid)}"${d.muted ? " checked" : ""} aria-label="Muted"><span></span></label></td>
+  </tr>`).join("") || `<tr><td colspan="8" class="muted">No devices match.</td></tr>`;
+}
+
+async function save(bssid, body) {
+  const r = await fetch("/api/device", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bssid, ...body }) });
+  const j = await r.json().catch(() => ({}));
+  if (j.ok) { Object.assign(data.find(d => d.bssid === bssid), j.device); toast("Saved"); } else toast("Could not save");
+}
+$("rows").addEventListener("change", ev => {
+  const el = ev.target, b = el.dataset.b; if (!b) return;
+  if (el.classList.contains("name")) save(b, { name: el.value });
+  else if (el.dataset.t) save(b, { [el.dataset.t]: el.checked });
+});
+$("rows").addEventListener("keydown", ev => { if (ev.key === "Enter" && ev.target.classList.contains("name")) ev.target.blur(); });
+$("filter").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  filter = b.dataset.f; [...$("filter").children].forEach(x => x.classList.toggle("on", x === b)); render();
+});
+$("q").addEventListener("input", render);
+
+async function load() {
+  if (document.activeElement && document.activeElement.classList.contains("name")) return;   // don't clobber typing
+  try {
+    const j = await (await fetch("/api/devices", { cache: "no-store" })).json();
+    data = j.devices || []; render();
+  } catch (e) { $("rows").innerHTML = `<tr><td colspan="8" class="muted">Could not load devices. Is wifi_web.py running?</td></tr>`; }
+}
+try { const t = localStorage.getItem("wifisense-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+load(); setInterval(load, 30000);
+</script>
+</body>
+</html>

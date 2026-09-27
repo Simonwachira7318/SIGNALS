@@ -1,0 +1,13 @@
+{
+  "name": "Wi-Fi Sense",
+  "short_name": "Wi-Fi Sense",
+  "description": "Passive Wi-Fi motion and presence dashboard",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0e",
+  "theme_color": "#2a78d6",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

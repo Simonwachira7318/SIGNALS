@@ -1,0 +1,12 @@
+__pycache__/
+oui_manuf.txt
+activity_model.json
+settings.json
+.env
+backups/
+build/
+dist/
+*.spec
+floorplan.json
+floorplan_image.*
+wifi_sense.log*
