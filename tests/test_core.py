@@ -174,6 +174,48 @@ class InsightsTests(unittest.TestCase):
         self.assertEqual(next(x for x in tr if x["bssid"] == "a")["ratio"], 1.8)
 
 
+class AlertTests(unittest.TestCase):
+    def make(self, d):
+        import alerts
+        alerts.SETTINGS_FILE = Path(d) / "s.json"
+        sent = []
+        a = alerts.Alerter(alerts.Settings(), lambda t, m: sent.append((t, m)))
+        a.token = a.chat = ""                                  # no Telegram in tests
+        return alerts, a, sent
+
+    def test_snooze_groups_and_security(self):
+        with tempfile.TemporaryDirectory() as d:
+            alerts, a, sent = self.make(d)
+            a.set_snooze("motion", 60)
+            self.assertTrue(a.is_snoozed("motion"))
+            self.assertFalse(a.is_snoozed("new_device"))
+            a.set_snooze("all", 15)
+            self.assertTrue(a.is_snoozed("occupied"))
+            self.assertFalse(a.is_snoozed("security"))         # security is never snoozed
+            a.handle("motion", "serious", "Light movement", "x")
+            a.handle("security", "critical", "Possible evil twin", "y")
+            self.assertEqual([t for t, _ in sent], ["Possible evil twin"])
+            a.set_snooze("resume", 0)
+            self.assertEqual(a.snooze_state(), {})
+            with self.assertRaises(ValueError):
+                a.set_snooze("bogus", 5)
+
+    def test_burst_is_grouped(self):
+        import time as _t
+        with tempfile.TemporaryDirectory() as d:
+            alerts, a, sent = self.make(d)
+            a.settings.update({"quiet_enabled": False})
+            alerts.GROUP_WINDOW_S = 0.3
+            for i in range(4):
+                a.handle("motion", "serious", "Light movement", f"#{i}")
+            self.assertEqual(len(sent), 1)                     # first one immediately
+            _t.sleep(0.6)
+            self.assertEqual(len(sent), 2)                     # the other three as ONE summary
+            self.assertIn("3 more alerts", sent[1][0])
+            self.assertIn("3× Light movement", sent[1][1])
+            alerts.GROUP_WINDOW_S = 60
+
+
 class SettingsTests(unittest.TestCase):
     def test_ranges_and_validation(self):
         import alerts

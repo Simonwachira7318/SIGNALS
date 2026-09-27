@@ -155,6 +155,9 @@ class RuleEngine:
                 continue
             if not self._in_window(r) or now - self.last_fire.get(r["id"], 0) < r["cooldown_s"]:
                 continue
+            # snoozed alerts also silence notification-type actions (webhooks/automations still run)
+            if r["action"] in ("telegram", "desktop", "sound") and self.alerter.is_snoozed(ev["kind"]):
+                continue
             self.last_fire[r["id"]] = now
             threading.Thread(target=self._fire, args=(r, ev), daemon=True).start()
 

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WiFi Sense Health</title>
+<script src="/nav.js" defer></script>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/brand/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -60,20 +61,19 @@
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <a class="btn" href="/">← Dashboard</a><img src="/brand/logo_mark.png" alt="" style="width:28px;height:28px;object-fit:contain"><h1>Wi-Fi health</h1>
+  <header style="margin-top:14px"><h1>Wi-Fi health</h1>
     <select id="hours" style="margin-left:auto"><option value="6">Last 6 h</option><option value="24" selected>Last 24 h</option><option value="168">Last 7 days</option></select>
   </header>
-  <section class="tiles" id="tiles"></section>
+  <section class="tiles" id="tiles" data-section="Summary"></section>
   <section class="grid2">
-    <div class="card"><h2>Signal strength</h2><p class="sub">Your connection's signal (dBm, higher = better)</p><svg id="c-rssi" class="chart" viewBox="0 0 520 200"></svg></div>
+    <div class="card" data-section="Signal strength"><h2>Signal strength</h2><p class="sub">Your connection's signal (dBm, higher = better)</p><svg id="c-rssi" class="chart" viewBox="0 0 520 200"></svg></div>
     <div class="card"><h2>Link speed</h2><p class="sub">Negotiated rates (Mbps)</p><svg id="c-rate" class="chart" viewBox="0 0 520 200"></svg>
       <div class="legend"><span><i style="background:var(--s1)"></i>Download (rx)</span><span><i style="background:var(--s2)"></i>Upload (tx)</span></div></div>
-    <div class="card"><h2>Latency</h2><p class="sub">Ping time (ms). Red dots mark lost packets.</p><svg id="c-lat" class="chart" viewBox="0 0 520 200"></svg>
+    <div class="card" data-section="Latency"><h2>Latency</h2><p class="sub">Ping time (ms). Red dots mark lost packets.</p><svg id="c-lat" class="chart" viewBox="0 0 520 200"></svg>
       <div class="legend"><span><i style="background:var(--s1)"></i>Router</span><span><i style="background:var(--s2)"></i>Internet (1.1.1.1)</span></div></div>
-    <div class="card"><h2>Worst hours of the day</h2><p class="sub">Average internet latency by hour, last 7 days</p><svg id="c-hour" class="chart" viewBox="0 0 520 200"></svg></div>
+    <div class="card" data-section="Worst hours"><h2>Worst hours of the day</h2><p class="sub">Average internet latency by hour, last 7 days</p><svg id="c-hour" class="chart" viewBox="0 0 520 200"></svg></div>
   </section>
-  <section class="card"><h2>Connection events</h2><p class="sub">Disconnects, reconnects, roaming and slow periods</p>
+  <section class="card" data-section="Connection events"><h2>Connection events</h2><p class="sub">Disconnects, reconnects, roaming and slow periods</p>
     <table><tbody id="events"></tbody></table></section>
   <p class="note">Latency test: pings your router and 1.1.1.1 (3 pings each) once a minute (switch it off in Alerts &amp; settings). That's ordinary network traffic, not a radio scan.</p>
 </div>

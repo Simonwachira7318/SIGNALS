@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WiFi Sense Floor Plan</title>
+<script src="/nav.js" defer></script>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/brand/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -61,9 +62,8 @@
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <a class="btn" href="/">← Dashboard</a>
-    <img src="/brand/logo_mark.png" alt="" style="width:28px;height:28px;object-fit:contain"><h1>Floor plan</h1>
+  <header style="margin-top:14px">
+    <h1>Floor plan</h1>
     <div class="right">
       <label class="btn" for="file">Upload plan image…</label>
       <input type="file" id="file" accept="image/png,image/jpeg" style="display:none">
@@ -74,7 +74,9 @@
   </header>
 
   <div class="layout">
-    <section class="card">
+    <section class="card" id="fp-card">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <button class="btn sm" id="fp-fs" title="Full screen (Esc to leave)">⛶ <span>Full screen</span></button></div>
       <div class="stage" id="stage"><img id="plan" alt="" style="display:none"><svg id="svg" viewBox="0 0 1000 650"></svg></div>
       <div class="legend">
         <span><i style="background:var(--series)"></i>Your laptop / node</span>
@@ -240,6 +242,17 @@ $("file").addEventListener("change", async () => {
 $("clear-img").addEventListener("click", async () => { await post("/api/floorplan/image/clear", {}); plan.image = null; applyImage(); });
 $("width").addEventListener("change", async () => { plan.width_m = Math.max(2, +$("width").value || 10); await saveLayout(); draw(); });
 $("trail-on").addEventListener("change", draw);
+// ---------- full screen: fit the whole plan on screen ----------
+$("fp-fs").addEventListener("click", () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else $("fp-card").requestFullscreen().catch(() => { $("msg").textContent = "Full screen isn't available here."; });
+});
+document.addEventListener("fullscreenchange", () => {
+  const fs = document.fullscreenElement === $("fp-card");
+  $("fp-fs").querySelector("span").textContent = fs ? "Exit full screen" : "Full screen";
+  $("stage").style.maxWidth = fs ? `${Math.floor((innerHeight - 170) * W / H)}px` : "";
+  $("stage").style.margin = fs ? "0 auto" : "";
+});
 
 // ---------- live loop (server push, polling fallback) ----------
 function onState(s) { state = s; addTrail(s); if (!drag) { draw(); renderPalette(); } }

@@ -213,6 +213,57 @@ Routing: security alerts always go to your phone. With **Away mode** on, motion,
 presence, room-occupied, unknown-device and Bluetooth alerts do too. Known-device arrivals never do. Desktop motion alerts are muted
 during quiet hours; security alerts still show. The token is only read from `.env` / the environment and is never shown or logged.
 
+## Navigation, themes and accessibility
+
+- **Sticky navbar** on every page: the logo, links to all pages (the current one is highlighted), the
+  **Alerts** bell and the **theme** button. It stays at the top while you scroll.
+- **☰ side drawer**: every page, plus **On this page** links to the current page's sections. The section
+  you're looking at is highlighted.
+- **Themes**: the theme button cycles **Light → Dark → High contrast**. High contrast uses pure black, white
+  borders and brighter status colours. Your choice is remembered on this device.
+- **Keyboard and screen readers**:
+  - a *Skip to content* link;
+  - visible focus outlines;
+  - Tab moves through the signal-map sources and shows each one's details;
+  - map and chart summaries are read aloud;
+  - room changes and new alerts are announced;
+  - Esc closes menus and dialogs;
+  - animations stop if your system asks for reduced motion.
+
+## Snooze and grouped alerts
+
+The **Alerts** bell (navbar) snoozes notifications:
+
+- **All alerts**: 15 min, 1 h, 8 h, or until 07:00 tomorrow.
+- **Only one group** for 1 h: movement, presence, or devices & Wi-Fi.
+- **Resume all** turns them back on.
+
+While snoozed, detections are still recorded and shown; only desktop and Telegram notifications, and rules
+that notify (Telegram / desktop / sound), are silenced. Webhook rules still run. **Security alerts are never
+snoozed.**
+
+**Grouping**: alerts that arrive within 60 s of the previous one are held and sent as **one** summary
+("3 more alerts: 2× Light movement, Unknown Wi-Fi device"). On the dashboard, repeated detections of the
+same kind collapse into one card with a **×N** badge and *show N more*.
+
+## Customise the dashboard
+
+**Customise** (top right of the dashboard) lets you drag cards to reorder them, or use ↑ ↓ to move them
+and 👁 to hide them. This works for the summary tiles and the big sections. Press **Done** to save the layout
+on this device; **Reset layout** restores the default.
+
+## Full screen and wall display
+
+- **Full screen** on the signal map and the floor plan fills the screen (Esc leaves).
+- **Wall display** (`/kiosk`, in the navbar) is for a tablet on the wall. It shows:
+  - a big clock;
+  - the room status (occupied/empty and for how long);
+  - an activity bar and a mini radar;
+  - the last three events.
+
+  It keeps the screen awake and dims between 22:00 and 06:00, brightening again for a minute when there's
+  movement. Change the dim hours with `/kiosk?dim=23-7`, or turn dimming off with `?dim=off`. Tap to go full screen.
+
 ## Why did it fire?
 
 Every detection has a **Why?** button, and so do the markers on *Your day*. It opens:
@@ -387,6 +438,8 @@ also push events into Home Assistant directly.
 | `node.py` | Remote room sensor |
 | `tray.py`, `build_exe.ps1` | Tray app, standalone .exe build |
 | `insights.py` | Why-drilldown, day timeline, replay, heat trail data |
+| `nav.js`, `nav.css` | Shared sticky navbar, side drawer, snooze bell, themes, focus styles |
+| `kiosk.html` | Wall display |
 | `make_icons.py`, `brand/`, `wifi-Photoroom.png` | Logo → favicon, header logo, app icons, tray and notification icon |
 | `manifest.json`, `sw.js`, `icon.svg` | Phone-app (PWA) files |
 | `tests/` | Unit tests |

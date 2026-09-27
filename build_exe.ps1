@@ -14,7 +14,7 @@ python -m unittest discover -s tests
 if ($LASTEXITCODE -ne 0) { throw "Tests failed; not building." }
 
 $data = @("wifi_web.html", "history.html", "devices.html", "health.html", "floorplan.html", "rules.html",
-          "tuning.html", "manifest.json", "sw.js", "icon.svg", "oui_manuf.txt", ".env.example") |
+          "tuning.html", "kiosk.html", "nav.js", "nav.css", "manifest.json", "sw.js", "icon.svg", "oui_manuf.txt", ".env.example") |
         Where-Object { Test-Path $_ } | ForEach-Object { "--add-data=$_;." }
 if (Test-Path "brand") { $data += "--add-data=brand;brand" }
 

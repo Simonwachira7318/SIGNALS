@@ -15,6 +15,10 @@ Routing rules
   * Away mode OFF -> phone alert only for security events.
   * Desktop notifications: motion + security, muted during quiet hours
     (security still shows).
+  * Snooze (all, or just movement / presence / devices) silences desktop +
+    phone alerts until a time; detections are still recorded. Security never snoozes.
+  * Grouping: alerts arriving within 60 s of the previous one are held and sent
+    as ONE summary ("3 more alerts: 2× Light movement, 1× Unknown device").
 """
 
 import os
@@ -44,8 +48,13 @@ DEFAULTS = dict(
 )
 RANGES = {"presence_hold_min": (1, 60), "episode_gap_s": (5, 600), "retention_days": (1, 365),
           "motion_threshold_scale": (0.3, 4.0)}
-INTERNAL = {"last_report_date"}  # saved in settings.json, not editable from the UI
-PHONE_COOLDOWN_S = 60
+INTERNAL = {"last_report_date", "snooze"}  # saved in settings.json, not edited via /api/settings
+GROUP_WINDOW_S = 60              # alerts within this window of the last one are grouped into one summary
+SNOOZE_GROUPS = {                # detection kind -> snooze group ("security" is never snoozed)
+    "motion": "motion", "unusual": "motion", "room_motion": "motion", "calm": "motion",
+    "occupied": "presence", "empty": "presence", "still": "presence", "blocked": "presence", "ble": "presence",
+    "new_device": "devices", "arrived": "devices", "left": "devices", "health": "devices", "calibrated": "devices",
+}
 AWAY_KINDS = {"motion", "still", "blocked", "new_device", "security", "ble", "occupied",
               "unusual", "room_motion"}
 
@@ -119,9 +128,11 @@ class Alerter:
         self.desktop_notify = desktop_notify
         self.token = os.environ.get("WIFI_SENSE_TELEGRAM_TOKEN", "").strip()
         self.chat = os.environ.get("WIFI_SENSE_TELEGRAM_CHAT", "").strip()
-        self.last_phone = {}
-        self.last_desktop = 0.0
         self.last_error = None
+        self.lock = threading.Lock()
+        self.last_sent = 0.0             # when the last (non-grouped) alert went out
+        self.batch = []                  # held alerts: (title, msg, desktop, phone)
+        self.timer = None
 
     @property
     def phone_configured(self):
@@ -129,27 +140,82 @@ class Alerter:
 
     def status(self):
         return dict(phone_configured=self.phone_configured, last_error=self.last_error,
-                    quiet_now=self.settings.in_quiet_hours())
+                    quiet_now=self.settings.in_quiet_hours(), snooze=self.snooze_state(),
+                    held=len(self.batch))
 
+    # ---------- snooze ----------
+    def snooze_state(self):
+        now = time.time()
+        return {g: t for g, t in (self.settings.snapshot().get("snooze") or {}).items() if t > now}
+
+    def is_snoozed(self, kind):
+        if kind == "security":
+            return False
+        st = self.snooze_state()
+        return "all" in st or SNOOZE_GROUPS.get(kind) in st
+
+    def set_snooze(self, group, minutes):
+        """group: all / motion / presence / devices, or 'resume' to clear everything. minutes 0 = clear group."""
+        if group not in ("all", "motion", "presence", "devices", "resume"):
+            raise ValueError("unknown snooze group")
+        st = self.snooze_state()
+        if group == "resume":
+            st = {}
+        elif minutes <= 0:
+            st.pop(group, None)
+        else:
+            st[group] = time.time() + min(int(minutes), 7 * 24 * 60) * 60
+        self.settings.set_internal("snooze", st)
+        return st
+
+    # ---------- routing + grouping ----------
     def handle(self, kind, severity, title, msg):
         s = self.settings.snapshot()
+        desktop = s["desktop_alerts"] and kind in ("motion", "security") and \
+            (kind == "security" or not self.settings.in_quiet_hours())
+        phone = self.phone_configured and (kind == "security" or (s["away_mode"] and kind in AWAY_KINDS))
+        if not (desktop or phone) or self.is_snoozed(kind):
+            return
         now = time.time()
-        # desktop
-        if s["desktop_alerts"] and kind in ("motion", "security"):
-            if (kind == "security" or not self.settings.in_quiet_hours()) and now - self.last_desktop > 8:
-                self.last_desktop = now
-                self.desktop_notify(title, msg)
-        # phone
-        wants_phone = kind == "security" or (s["away_mode"] and kind in AWAY_KINDS)
-        if wants_phone and self.phone_configured and now - self.last_phone.get(kind, 0) > PHONE_COOLDOWN_S:
-            self.last_phone[kind] = now
+        with self.lock:
+            if kind != "security" and now - self.last_sent < GROUP_WINDOW_S:
+                self.batch.append((title, msg, desktop, phone))           # hold: sent as one summary
+                if self.timer is None:
+                    self.timer = threading.Timer(self.last_sent + GROUP_WINDOW_S - now, self._flush)
+                    self.timer.daemon = True
+                    self.timer.start()
+                return
+            self.last_sent = now
+        self._deliver(title, msg, desktop, phone)
+
+    def _deliver(self, title, msg, desktop, phone):
+        if desktop:
+            self.desktop_notify(title, msg)
+        if phone:
             self.send_phone(f"{title}\n{msg}")
+
+    def _flush(self):
+        with self.lock:
+            batch, self.batch, self.timer = self.batch, [], None
+            if not batch:
+                return
+            self.last_sent = time.time()
+        counts = {}
+        for title, *_ in batch:
+            counts[title] = counts.get(title, 0) + 1
+        summary = ", ".join(f"{n}× {t}" if n > 1 else t for t, n in counts.items())
+        head = f"{len(batch)} more alert{'s' if len(batch) != 1 else ''}"
+        if any(d for *_, d, _p in batch):
+            self.desktop_notify(head, summary)
+        if any(p for *_, p in batch):
+            lines = "\n".join(f"• {t}: {m}" for t, m, *_ in batch[:10])
+            self.send_phone(f"{head} in the last minute:\n{lines}" + (f"\n…and {len(batch) - 10} more" if len(batch) > 10 else ""))
 
     def send_phone(self, text, wait=False):
         """Send a Telegram message. Runs in a thread unless wait=True."""
         def _send():
             try:
-                data = urllib.parse.urlencode(dict(chat_id=self.chat, text=f"📡 Wi-Fi Sense\n{text}")).encode()
+                data = urllib.parse.urlencode(dict(chat_id=self.chat, text=f"📡 WiFi Sense\n{text}")).encode()
                 url = f"https://api.telegram.org/bot{self.token}/sendMessage"
                 with urllib.request.urlopen(url, data=data, timeout=20) as r:
                     r.read()

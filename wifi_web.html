@@ -6,6 +6,7 @@
 <title>WiFi Sense</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#2a78d6">
+<script src="/nav.js" defer></script>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/brand/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -295,6 +296,33 @@
             border-radius: 6px; padding: 1px 7px; cursor: pointer; line-height: 18px; margin-left: 6px; }
   .whybtn:hover { color: var(--text); border-color: var(--muted); }
 
+  /* ---------- toolbar / customise / grouping ---------- */
+  header.toolbar { margin-top: 14px; }
+  .grp-badge { font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 999px; background: var(--cb); color: var(--text);
+               border: 1px solid var(--c); margin-left: 6px; }
+  .grp-more { font: inherit; font-size: 11px; border: 0; background: none; color: var(--text-2); cursor: pointer; padding: 0; margin-left: 8px;
+              text-decoration: underline; }
+  .feed li.grp-child { margin-left: 18px; border-left-style: dashed; }
+  [data-card] { position: relative; }
+  .ws-hidden { display: none !important; }
+  body.customizing .ws-hidden { display: revert !important; opacity: .35; }
+  body.customizing .kpis > .ws-hidden { display: flex !important; }
+  body.customizing [data-card] { outline: 2px dashed var(--series); outline-offset: 3px; }
+  .cz { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); z-index: 5; display: none; gap: 4px; background: var(--surface);
+        border: 1px solid var(--border); border-radius: 8px; padding: 3px; box-shadow: var(--shadow); }
+  body.customizing .cz { display: flex; }
+  .cz button { font: inherit; font-size: 12px; min-width: 28px; height: 26px; border: 0; border-radius: 6px; background: var(--surface-2);
+               color: var(--text); cursor: pointer; }
+  .cz button:hover { filter: brightness(1.2); }
+  .cz-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 40; display: none; gap: 8px; align-items: center;
+            background: var(--surface); border: 1px solid var(--series); border-radius: 12px; padding: 8px 12px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+            font-size: 13px; }
+  body.customizing .cz-bar { display: flex; }
+  body.customizing [data-card][draggable="true"] { cursor: grab; }
+  .dragging { opacity: .4; }
+  .node:focus { outline: none; }
+  .node:focus .bg { stroke: var(--text); stroke-width: 3; }
+
   /* ---------- feed ---------- */
   .feed { list-style: none; margin: 0; padding: 0; max-height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
   .feed li { display: flex; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2);
@@ -443,12 +471,9 @@
 </defs></svg>
 
 <div class="wrap">
-  <header>
-    <div class="brand">
-      <img class="logo-img" src="/brand/logo_mark.png" alt="WiFi Sense logo">
-      <div><h1>WiFi Sense</h1><div class="tag">Smarter connectivity · passive motion &amp; presence sensing</div></div>
-    </div>
-    <div id="status" class="status sev-warning"><svg><use href="#i-clock"/></svg><span>Connecting…</span></div>
+  <header class="toolbar">
+    <h1 class="sr-only">WiFi Sense dashboard</h1>
+    <div id="status" role="status" class="status sev-warning"><svg><use href="#i-clock"/></svg><span>Connecting…</span></div>
     <div class="hdr-right">
       <span id="away" class="pill sev-info away-badge"><svg><use href="#i-shield"/></svg>Away mode</span>
       <span class="live" id="live"><i></i><span id="live-txt">Live</span></span>
@@ -457,19 +482,11 @@
       <span>DB <b id="m-db">–</b></span>
       <div class="seg" id="mode" role="group" aria-label="View mode">
         <button data-m="simple" title="Just the essentials">Simple</button><button data-m="expert" title="Everything">Expert</button></div>
-      <button class="btn" id="theme" title="Toggle light/dark"><svg class="i"><use href="#i-moon"/></svg><span>Theme</span></button>
+      <button class="btn" id="customize" title="Reorder or hide cards"><svg class="i"><use href="#i-sliders"/></svg><span>Customise</span></button>
     </div>
   </header>
 
-  <nav class="pages" aria-label="Pages">
-    <a href="/devices"><svg><use href="#i-tag"/></svg>Devices</a>
-    <a href="/history"><svg><use href="#i-history"/></svg>History</a>
-    <a href="/health"><svg><use href="#i-heart"/></svg>Wi-Fi health</a>
-    <a href="/floorplan"><svg><use href="#i-plan"/></svg>Floor plan</a>
-    <a href="/rules"><svg><use href="#i-flow"/></svg>Rules</a>
-    <a href="/tuning"><svg><use href="#i-sliders"/></svg>Tuning lab</a>
-  </nav>
-
+<div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   <div id="banner" class="banner"><svg class="i"><use href="#i-alert"/></svg>
     <span>Lost connection to <b>wifi_web.py</b>. Is it still running?</span></div>
 
@@ -481,14 +498,14 @@
   </div>
 
   <!-- KPI tiles -->
-  <section class="kpis">
-    <div class="card kpi wide" id="k-presence">
+  <section class="kpis" data-card="kpis" data-section="Overview">
+    <div class="card kpi wide" id="k-presence" data-card="room">
       <div class="lbl"><svg><use href="#i-door"/></svg>Room</div>
       <div class="presence-top" id="p-top"><span class="room">–</span></div>
       <svg class="tl" id="p-tl" viewBox="0 0 400 26" preserveAspectRatio="none" role="img" aria-label="Occupancy over the last hour"></svg>
       <ul class="reasons" id="p-why"></ul>
     </div>
-    <div class="card kpi">
+    <div class="card kpi" data-card="score">
       <div class="lbl"><svg><use href="#i-pulse"/></svg>Activity score</div>
       <div class="val" id="k-score">–<small>/100</small></div>
       <div class="gauge" id="k-gauge">
@@ -497,32 +514,32 @@
       </div>
       <div class="foot" id="k-score-foot"></div>
     </div>
-    <div class="card kpi x-only">
+    <div class="card kpi x-only" data-card="occ">
       <div class="lbl"><svg><use href="#i-home"/></svg>Room activity · 5 min</div>
       <div class="val" id="k-occ">–<small>%</small></div>
       <div class="foot" id="k-occ-foot"></div>
     </div>
-    <div class="card kpi">
+    <div class="card kpi" data-card="today">
       <div class="lbl"><svg><use href="#i-cal"/></svg>Motion episodes today</div>
       <div class="val" id="k-today">–</div>
       <div class="foot" id="k-last"></div>
     </div>
-    <div class="card kpi x-only">
+    <div class="card kpi x-only" data-card="aps">
       <div class="lbl"><svg><use href="#i-radio"/></svg>Wi-Fi sources nearby</div>
       <div class="val" id="k-aps">–</div>
       <div class="foot chips" id="k-types"></div>
     </div>
-    <div class="card kpi x-only">
+    <div class="card kpi x-only" data-card="link">
       <div class="lbl"><svg><use href="#i-wifi"/></svg>Your link</div>
       <div class="val" id="k-link">–</div>
       <div class="foot" id="k-link-foot"></div>
     </div>
-    <div class="card kpi x-only">
+    <div class="card kpi x-only" data-card="acc">
       <div class="lbl"><svg><use href="#i-target"/></svg>Detection accuracy</div>
       <div class="val" id="k-acc">–<small>%</small></div>
       <ul class="reasons" id="k-acc-why"></ul>
     </div>
-    <div class="card kpi x-only">
+    <div class="card kpi x-only" data-card="ch">
       <div class="lbl"><svg><use href="#i-router"/></svg>Channel congestion</div>
       <div class="val" id="k-ch">–</div>
       <div class="foot" id="k-ch-foot"></div>
@@ -530,7 +547,7 @@
   </section>
 
   <!-- your day -->
-  <section class="card" style="margin-bottom:16px">
+  <section class="card" style="margin-bottom:16px" data-card="day" data-section="Your day">
     <div class="day-head">
       <h2>Your day</h2>
       <span class="rng" style="display:inline">Drag or click along the timeline to replay that moment on the signal map. Click a marker for details.</span>
@@ -552,12 +569,13 @@
   </section>
 
   <!-- radar + feed -->
-  <section class="row a">
+  <section class="row a" data-card="map" data-section="Signal map & detections">
     <div class="card">
       <div class="replay-bar" id="replay-bar"><svg><use href="#i-history"/></svg><span id="replay-txt"></span>
         <button class="btn sm" id="replay-exit">Back to live</button></div>
       <div class="card-h"><div><h2>Signal map</h2>
-        <p>Radius is the estimated distance. Angle is arbitrary: one antenna can't sense direction.</p></div></div>
+        <p>Radius is the estimated distance. Angle is arbitrary: one antenna can't sense direction.</p></div>
+        <button class="btn sm fs-btn" data-fs title="Full screen (Esc to leave)"><svg class="i"><use href="#i-plan"/></svg><span>Full screen</span></button></div>
       <svg id="radar" class="chart" viewBox="0 0 600 600" role="img" aria-label="Wi-Fi sources at estimated distance"></svg>
       <div class="legend">
         <span><svg style="color:var(--series)"><use href="#i-laptop"/></svg>You</span>
@@ -579,7 +597,7 @@
   </section>
 
   <!-- activity + hourly -->
-  <section class="x-only row b">
+  <section class="x-only row b" data-card="activity" data-section="Activity & motion by hour">
     <div class="card">
       <div class="card-h"><div><h2>Activity level</h2>
         <p>Wobble as a multiple of each path's own threshold, over the last ~90 s. 1.0× = motion, 2.0× = strong.</p></div></div>
@@ -597,7 +615,7 @@
   </section>
 
   <!-- AI + bluetooth + settings -->
-  <section class="x-only row d">
+  <section class="x-only row d" data-card="ai" data-section="AI, Bluetooth & settings">
     <div class="card">
       <div class="card-h"><div><h2>Activity recognition</h2>
         <p>A model trained on your room. Label what's happening while it records, then train.</p></div>
@@ -661,7 +679,7 @@
   </section>
 
   <!-- rhythm + rooms -->
-  <section class="x-only row e">
+  <section class="x-only row e" data-card="rhythm" data-section="Rhythm & rooms">
     <div class="card">
       <div class="card-h"><div><h2>Movement rhythm</h2>
         <p>Frequency analysis of your live link (last ~13 s). Walking shows up around 1–2.5 Hz. Also tracks link-speed swings.</p></div>
@@ -678,7 +696,7 @@
   </section>
 
   <!-- channels + key -->
-  <section class="x-only row c">
+  <section class="x-only row c" data-card="channels" data-section="Channels & colour key">
     <div class="card">
       <div class="card-h"><div><h2>2.4 GHz channel usage</h2>
         <p>Networks per channel. The shaded band is the range that overlaps your channel.</p></div></div>
@@ -706,7 +724,7 @@
   </section>
 
   <!-- table -->
-  <section class="card x-only">
+  <section class="card x-only" data-card="sources" data-section="Wi-Fi sources">
     <div class="card-h"><div><h2>Wi-Fi sources in range</h2>
       <p>Trend shows the last ~60 s of signal. The dashed line is the learned baseline. Every reading is logged to MySQL <span class="mono">scans</span>.</p></div></div>
     <div class="table-wrap">
@@ -724,6 +742,8 @@
 </div>
 <div id="tip"></div>
 <div id="toast" role="status"></div>
+<div class="cz-bar" role="toolbar" aria-label="Customise layout"><b>Customise:</b> drag cards, or use ↑ ↓ to move and 👁 to hide.
+  <button class="btn sm" id="cz-reset">Reset layout</button><button class="btn sm primary" id="cz-done">Done</button></div>
 <dialog id="why" aria-label="Why did it fire?"><div class="why-in" id="why-in"></div></dialog>
 
 <script>
@@ -979,7 +999,7 @@ function drawRadar(s) {
     const cls = ["node", on ? "on sev-" + si.sev : "", a.connected ? "conn" : "", a.new ? "new" : ""].join(" ");
     const below = y >= RC - 20;
     const ly = below ? y + 30 : y - 33;
-    g += `<g class="${cls}" data-b="${esc(a.bssid)}">
+    g += `<g class="${cls}" data-b="${esc(a.bssid)}" tabindex="0" role="button" aria-label="${esc(a.name || a.ssid)}: ${a.dist.toFixed(1)} metres, signal ${a.pct}%, ${stateInfo(a, s.warming).label}">
       <circle class="hit" cx="${x}" cy="${y}" r="24"/>
       <circle class="bg" cx="${x}" cy="${y}" r="15"/>
       ${use(TYPE[a.type].icon, x, y, 17)}
@@ -995,7 +1015,13 @@ function drawRadar(s) {
         <g class="you">${use("i-laptop", RC, RC, 18)}</g>
         <text class="lbl-strong" x="${RC}" y="${RC + 31}" text-anchor="middle">YOU</text>`;
   if (!n) g += `<text class="ring-label" x="${RC}" y="${RC + 80}" text-anchor="middle">Waiting for Wi-Fi sources…</text>`;
+  const keep = document.activeElement && document.activeElement.closest && document.activeElement.closest("#radar .node");
+  const keepB = keep && keep.dataset.b;
   $("radar").innerHTML = g;
+  if (keepB) { const n = $("radar").querySelector(`.node[data-b="${CSS.escape(keepB)}"]`); if (n) n.focus({ preventScroll: true }); }
+  const mv = aps.filter(a => a.state === "moving").map(a => a.name || a.ssid);
+  $("radar").setAttribute("aria-label", `Signal map: ${n} Wi-Fi source${n === 1 ? "" : "s"}` +
+    (mv.length ? `, movement on the path to ${mv.join(", ")}` : ", no movement") + (replay ? ` (replaying ${hhmmss(replay.epoch)})` : ""));
 }
 $("radar").addEventListener("mousemove", ev => {
   const el = ev.target.closest(".node"), a = el && radarIdx[el.dataset.b];
@@ -1009,6 +1035,13 @@ $("radar").addEventListener("mousemove", ev => {
     tr("Wobble", `${a.wobble.toFixed(1)} ${a.unit} (threshold ${a.th} ${a.unit})`) + tr("State", si.label), ev);
 });
 $("radar").addEventListener("mouseleave", hideTip);
+// keyboard: Tab to a source shows its details next to it
+$("radar").addEventListener("focusin", ev => {
+  const el = ev.target.closest(".node"); if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: r.right, clientY: r.top }));
+});
+$("radar").addEventListener("focusout", hideTip);
 
 // ================= activity chart =================
 const AC = { w: 640, h: 250, l: 34, r: 78, t: 12, b: 26 };
@@ -1051,6 +1084,10 @@ function drawActivity(s) {
         <circle r="5" fill="var(--series-2)" stroke="var(--surface)" stroke-width="2"/></g>
         <rect id="act-hit" x="${AC.l}" y="${AC.t}" width="${pw}" height="${ph}" fill="transparent"/>`;
   $("activity").innerHTML = g;
+  if (actPts.length) {
+    const peak = Math.max(...actPts.map(p => p.v));
+    $("activity").setAttribute("aria-label", `Activity over the last ${Math.round(actPts.length * 1.5)} seconds: now ${actPts.at(-1).v.toFixed(1)} times the threshold, peak ${peak.toFixed(1)}. 1 means movement.`);
+  }
 }
 $("activity").addEventListener("mousemove", ev => {
   if (!actPts.length || ev.target.id !== "act-hit") return;
@@ -1154,21 +1191,41 @@ $("filters").addEventListener("click", ev => {
 });
 $("feed").addEventListener("click", async ev => {
   const w = ev.target.closest("button[data-why]"); if (w) return openWhy(+w.dataset.why);
+  const gm = ev.target.closest("button[data-grp]");
+  if (gm) { const k = gm.dataset.grp; expandedGroups.has(k) ? expandedGroups.delete(k) : expandedGroups.add(k); if (lastState) drawFeed(lastState); return; }
   const b = ev.target.closest("button[data-fb]"); if (!b) return;
   b.parentElement.querySelectorAll("button").forEach(x => x.disabled = true);
   const r = await api("/api/feedback", { id: +b.dataset.id, verdict: b.dataset.fb });
   toast(r.message || r.error || "Saved");
   lastScan = -1;
 });
+const expandedGroups = new Set();
+function groupFeed(items) {
+  // consecutive detections of the same kind + severity within 10 min collapse into one group
+  const groups = [];
+  for (const e of items) {
+    const g = groups.at(-1);
+    if (g && g.kind === e.kind && g.severity === e.severity && Math.abs(parseTs(g.items.at(-1).ts) - parseTs(e.ts)) <= 600000)
+      g.items.push(e);
+    else groups.push({ kind: e.kind, severity: e.severity, key: e.id || e.ts, items: [e] });
+  }
+  return groups;
+}
 function drawFeed(s) {
   const nowD = parseTs(s.ts);
   const items = s.feed.filter(e => FEED[e.kind] && (feedFilter === "all" || FEED[e.kind].group === feedFilter));
-  $("feed").innerHTML = items.length ? items.map(e => {
+  const rows = [];
+  for (const g of groupFeed(items)) {
+    const open = expandedGroups.has(String(g.key));
+    g.items.forEach((e, i) => { if (i === 0 || open) rows.push({ e, first: i === 0, n: g.items.length, key: g.key, open, child: i > 0 }); });
+  }
+  $("feed").innerHTML = rows.length ? rows.map(({ e, first, n, key, open, child }) => {
     const f = FEED[e.kind];
     const title = e.kind === "motion" ? (e.severity === "critical" ? "Strong movement" : "Light movement") : f.title;
     const when = e.past ? e.ts.slice(5, 16) : ago((nowD - parseTs(e.ts)) / 1000);
-    return `<li class="sev-${e.severity}${e.past ? " past" : ""}"><i class="ic">${svgI(e.kind === "motion" && e.severity === "serious" ? "i-person" : f.icon)}</i>
-      <div class="body"><div class="top"><span class="ttl">${title}</span><span class="when" title="${esc(e.ts)}">${when}</span></div>
+    const badge = first && n > 1 ? `<span class="grp-badge" title="${n} similar detections">×${n}</span><button class="grp-more" data-grp="${esc(String(key))}">${open ? "hide" : `show ${n - 1} more`}</button>` : "";
+    return `<li class="sev-${e.severity}${e.past ? " past" : ""}${child ? " grp-child" : ""}"><i class="ic">${svgI(e.kind === "motion" && e.severity === "serious" ? "i-person" : f.icon)}</i>
+      <div class="body"><div class="top"><span class="ttl">${title}${badge}</span><span class="when" title="${esc(e.ts)}">${when}</span></div>
       <div class="msg">${esc(e.msg)}</div><div style="margin-top:3px">${e.conf != null ? confHtml(e.conf) : ""}${fbHtml(e)}${e.id ? `<button class="whybtn" data-why="${e.id}" title="Show the signals around this detection">Why?</button>` : ""}</div></div></li>`;
   }).join("") : `<li class="sev-good"><i class="ic">${svgI("i-check")}</i><div class="body"><div class="ttl">Nothing yet</div>
       <div class="msg">Detections appear here as they happen.</div></div></li>`;
@@ -1546,31 +1603,101 @@ async function openWhy(id) {
 $("why").addEventListener("click", ev => { if (ev.target === $("why")) $("why").close(); });
 { const m = location.hash.match(/^#why=(\d+)$/); if (m) openWhy(+m[1]); }      // deep link: /#why=123
 
-// ================= theme =================
-(function initTheme() {
-  let saved = null; try { saved = localStorage.getItem("wifisense-theme"); } catch {}
-  if (saved) document.documentElement.dataset.theme = saved;
-  const setIcon = () => {
-    const dark = document.documentElement.dataset.theme === "dark" ||
-      (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
-    $("theme").querySelector("use").setAttribute("href", dark ? "#i-sun" : "#i-moon");
-  };
-  setIcon();
-  $("theme").addEventListener("click", () => {
-    const dark = document.documentElement.dataset.theme === "dark" ||
-      (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
-    const next = dark ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem("wifisense-theme", next); } catch {}
-    setIcon();
+
+// ================= full screen =================
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-fs]"); if (!b) return;
+  const host = b.closest(".card");
+  if (document.fullscreenElement) document.exitFullscreen(); else host.requestFullscreen().catch(() => toast("Full screen isn't available here"));
+});
+document.addEventListener("fullscreenchange", () => {
+  document.querySelectorAll("[data-fs] span").forEach(s => s.textContent = document.fullscreenElement ? "Exit full screen" : "Full screen");
+});
+
+// ================= customise layout =================
+const LAYOUT_KEY = "wifisense-layout";
+function loadLayout() { try { return JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}; } catch { return {}; } }
+function saveLayout(l) { try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(l)); } catch {} }
+const containers = () => [document.querySelector(".wrap"), document.querySelector(".kpis")];
+function applyLayout() {
+  const l = loadLayout();
+  for (const c of containers()) {
+    const order = (l.order || {})[c.classList.contains("kpis") ? "kpis" : "main"];
+    if (order) order.forEach(id => { const el = c.querySelector(`:scope > [data-card="${id}"]`); if (el) c.appendChild(el); });
+    const tail = [...c.children].filter(el => !el.matches("[data-card]") && el.matches("p.note"));   // keep footnote last
+    tail.forEach(el => c.appendChild(el));
+  }
+  document.querySelectorAll("[data-card]").forEach(el => el.classList.toggle("ws-hidden", (l.hidden || []).includes(el.dataset.card)));
+}
+function captureLayout() {
+  const l = loadLayout();
+  l.order = { main: [...document.querySelectorAll(".wrap > [data-card]")].map(e => e.dataset.card),
+              kpis: [...document.querySelectorAll(".kpis > [data-card]")].map(e => e.dataset.card) };
+  l.hidden = [...document.querySelectorAll("[data-card].ws-hidden")].map(e => e.dataset.card);
+  saveLayout(l);
+}
+function setCustomizing(on) {
+  document.body.classList.toggle("customizing", on);
+  document.querySelectorAll("[data-card]").forEach(el => {
+    el.draggable = on;
+    if (on && !el.querySelector(":scope > .cz")) {
+      const t = document.createElement("div"); t.className = "cz";
+      t.innerHTML = `<button data-cz="up" title="Move up / left" aria-label="Move ${esc(el.dataset.card)} earlier">↑</button>
+        <button data-cz="down" title="Move down / right" aria-label="Move ${esc(el.dataset.card)} later">↓</button>
+        <button data-cz="hide" title="Hide / show" aria-label="Hide or show ${esc(el.dataset.card)}">👁</button>`;
+      el.prepend(t);
+    }
+    if (!on) el.querySelectorAll(":scope > .cz").forEach(t => t.remove());
   });
-})();
+  if (!on) { captureLayout(); applyLayout(); toast("Layout saved on this device."); }
+}
+$("customize").addEventListener("click", () => setCustomizing(!document.body.classList.contains("customizing")));
+$("cz-done").addEventListener("click", () => setCustomizing(false));
+$("cz-reset").addEventListener("click", () => { try { localStorage.removeItem(LAYOUT_KEY); } catch {} location.reload(); });
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-cz]"); if (!b) return;
+  const card = b.closest("[data-card]"), c = card.parentElement;
+  if (b.dataset.cz === "hide") card.classList.toggle("ws-hidden");
+  else {
+    const sibs = [...c.children].filter(e => e.matches("[data-card]"));
+    const i = sibs.indexOf(card), j = b.dataset.cz === "up" ? i - 1 : i + 1;
+    if (j >= 0 && j < sibs.length) (b.dataset.cz === "up" ? c.insertBefore(card, sibs[j]) : c.insertBefore(card, sibs[j].nextSibling));
+    b.focus();
+  }
+  captureLayout();
+});
+let dragEl = null;
+document.addEventListener("dragstart", ev => { const c = ev.target.closest && ev.target.closest("[data-card]"); if (!c || !document.body.classList.contains("customizing")) return; dragEl = c; c.classList.add("dragging"); });
+document.addEventListener("dragend", () => { if (dragEl) { dragEl.classList.remove("dragging"); dragEl = null; captureLayout(); } });
+document.addEventListener("dragover", ev => {
+  if (!dragEl) return;
+  const over = ev.target.closest && ev.target.closest("[data-card]");
+  if (!over || over === dragEl || over.parentElement !== dragEl.parentElement) return;
+  ev.preventDefault();
+  const r = over.getBoundingClientRect();
+  const after = dragEl.parentElement.classList.contains("kpis") ? ev.clientX > r.left + r.width / 2 : ev.clientY > r.top + r.height / 2;
+  over.parentElement.insertBefore(dragEl, after ? over.nextSibling : over);
+});
+applyLayout();
+
+// ================= screen-reader announcements =================
+let announcedRoom = null, announcedId = null;
+function announce(s) {
+  const P = s.presence, newest = (s.feed || []).find(e => e.id && !e.past);
+  let msg = "";
+  if (P && P.state && announcedRoom && P.state !== announcedRoom) msg = `Room is now ${P.state}.`;
+  if (newest && announcedId !== null && newest.id !== announcedId) msg += ` New alert: ${(FEED[newest.kind] || {}).title || newest.kind}. ${newest.msg}`;
+  if (P && P.state) announcedRoom = P.state;
+  if (newest) announcedId = newest.id; else if (announcedId === null) announcedId = 0;
+  if (msg) $("sr-live").textContent = msg.trim();
+}
 
 // ================= render + live push =================
 let lastScan = -1, lastEventCount = 0;
 function render(s) {
   if (!s.aps || s.scan_count === lastScan) return;
   lastScan = s.scan_count; lastState = s; lastWarming = s.warming;
+  announce(s);
   const simple = document.body.classList.contains("simple");
   drawHeader(s); drawKpis(s); drawRadar(s); drawFeed(s); drawPresence(s); drawCalib(s);
   if (!simple) {                       // expert-only panels: skip the work when hidden

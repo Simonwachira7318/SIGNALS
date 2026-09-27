@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WiFi Sense History</title>
+<script src="/nav.js" defer></script>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/brand/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -95,9 +96,8 @@
 </defs></svg>
 
 <div class="wrap">
-  <header>
-    <a class="btn" href="/"><svg width="14" height="14"><use href="#i-back"/></svg>Dashboard</a>
-    <img src="/brand/logo_mark.png" alt="" style="width:28px;height:28px;object-fit:contain">
+  <header style="margin-top:14px">
+    
     <h1>History</h1>
     <div class="right">
       <select id="days"><option value="7">Last 7 days</option><option value="14" selected>Last 14 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
@@ -106,16 +106,16 @@
     </div>
   </header>
 
-  <section class="tiles" id="tiles"></section>
+  <section class="tiles" id="tiles" data-section="Totals"></section>
 
-  <section class="card">
+  <section class="card" data-section="Movement heatmap">
     <h2>When is there movement?</h2>
     <p class="sub">Motion episodes per hour of each day. Stronger blue = more episodes.</p>
     <div class="heat-wrap"><svg id="heat" class="chart" role="img" aria-label="Motion heatmap by day and hour"></svg></div>
     <div class="scale" id="scale"></div>
   </section>
 
-  <section class="card">
+  <section class="card" data-section="Long-term trends">
     <h2>Long-term trends</h2>
     <p class="sub">Daily totals from the hourly summaries, which are kept forever even after raw scans are cleaned up.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
@@ -129,7 +129,7 @@
 
   <section class="card">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <div><h2>Detection log</h2><p class="sub" style="margin-bottom:0">Newest first, up to 500 rows.</p></div>
+      <div data-section="Detection log"><h2>Detection log</h2><p class="sub" style="margin-bottom:0">Newest first, up to 500 rows.</p></div>
       <select id="kind" style="margin-left:auto">
         <option value="">All types</option><option value="motion">Movement</option><option value="calm">Movement stopped</option>
         <option value="blocked">Path blocked</option><option value="still">Still presence</option>

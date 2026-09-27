@@ -1,7 +1,7 @@
 // Wi-Fi Sense service worker: makes the dashboard installable on a phone ("Add to Home screen").
 // Pages are network-first with a cached fallback; live data (/api/) is never cached.
-const CACHE = "wifi-sense-v2";
-const SHELL = ["/", "/history", "/devices", "/health", "/floorplan", "/rules", "/tuning", "/manifest.json", "/icon.svg",
+const CACHE = "wifi-sense-v3";
+const SHELL = ["/", "/history", "/devices", "/health", "/floorplan", "/rules", "/tuning", "/kiosk", "/nav.js", "/nav.css", "/manifest.json", "/icon.svg",
                "/brand/logo_mark.png", "/brand/favicon-32.png", "/brand/icon-192.png"];
 
 self.addEventListener("install", ev => {

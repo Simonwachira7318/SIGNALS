@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WiFi Sense Wall display</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
+<style>
+  :root {
+    --bg: #07080a; --surface: #111317; --border: #23262c; --text: #ffffff; --text-2: #b9bcc4; --muted: #7d818b;
+    --series: #3987e5; --good: #3ddc84; --warning: #fab219; --serious: #ec835a; --critical: #ef5b5b; --grid: #1c1f24;
+  }
+  :root[data-theme="contrast"] { --bg: #000; --surface: #000; --border: #fff; --text: #fff; --text-2: #fff; --muted: #ddd; --grid: #555; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden;
+         display: grid; grid-template-rows: auto 1fr auto; cursor: default; -webkit-user-select: none; user-select: none; }
+  .top { display: flex; align-items: center; gap: 14px; padding: 2.2vh 3vw; }
+  .top img { width: 5vh; height: 5vh; object-fit: contain; }
+  .top .brand { font-weight: 700; font-size: 2.4vh; }
+  .top .live { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 2vh; color: var(--text-2); }
+  .top .live i { width: 1.2vh; height: 1.2vh; border-radius: 50%; background: var(--good); }
+  .top .live.off i { background: var(--critical); }
+  .main { display: grid; grid-template-columns: 1.25fr 1fr; gap: 3vw; padding: 0 3vw; align-items: center; min-height: 0; }
+  @media (orientation: portrait) { .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } }
+  .clock { font-size: 11vh; font-weight: 300; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .date { font-size: 2.6vh; color: var(--text-2); margin-top: .8vh; }
+  .room { margin-top: 5vh; display: flex; align-items: center; gap: 2.4vw; }
+  .room .dot { width: 9vh; height: 9vh; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 18%, transparent);
+               border: .45vh solid var(--c); flex: none; }
+  .room .dot svg { width: 4.6vh; height: 4.6vh; color: var(--c); }
+  .room .state { font-size: 9.5vh; font-weight: 700; line-height: 1; }
+  .room .sub { font-size: 2.4vh; color: var(--text-2); margin-top: 1vh; }
+  .bar { height: 1.4vh; border-radius: 1vh; background: var(--grid); margin-top: 4vh; overflow: hidden; max-width: 60vh; }
+  .bar i { display: block; height: 100%; border-radius: 1vh; transition: width .6s, background .6s; }
+  .bar-lbl { font-size: 1.9vh; color: var(--muted); margin-top: .8vh; }
+  #radar { width: 100%; max-height: 62vh; display: block; }
+  .sweep { transform-origin: 300px 300px; animation: sweep 6s linear infinite; }
+  @keyframes sweep { to { transform: rotate(360deg); } }
+  .events { padding: 1.6vh 3vw 2.6vh; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4vw; }
+  .ev { background: var(--surface); border: 1px solid var(--border); border-left: .5vh solid var(--c); border-radius: 1.4vh; padding: 1.4vh 1.4vw; min-width: 0; }
+  .ev b { display: block; font-size: 2.1vh; }
+  .ev span { display: block; font-size: 1.7vh; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ev small { font-size: 1.5vh; color: var(--muted); }
+  .dim { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 2s; }
+  .dim.on { opacity: .72; }
+  .exit { position: fixed; right: 1.4vw; bottom: 1.2vh; font-size: 1.5vh; color: var(--muted); text-decoration: none; opacity: .5; }
+  .exit:hover, .exit:focus { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .sweep { animation: none; } .bar i, .dim { transition: none; } }
+</style>
+</head>
+<body>
+  <div class="top">
+    <img src="/brand/logo_mark.png" alt=""><span class="brand">WiFi Sense</span>
+    <span class="live" id="live"><i></i><span id="live-txt">Connecting…</span></span>
+  </div>
+  <div class="main">
+    <div>
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+      <div class="room" id="room" role="status" aria-live="polite" style="--c:var(--muted)">
+        <div class="dot" id="room-dot"></div>
+        <div><div class="state" id="room-state">…</div><div class="sub" id="room-sub"></div></div>
+      </div>
+      <div class="bar"><i id="act" style="width:0"></i></div>
+      <div class="bar-lbl" id="act-lbl">Activity</div>
+    </div>
+    <svg id="radar" viewBox="0 0 600 600" role="img" aria-label="Signal map"></svg>
+  </div>
+  <div class="events" id="events"></div>
+  <div class="dim" id="dim"></div>
+  <a class="exit" href="/">Exit wall display</a>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2, "0");
+const params = new URLSearchParams(location.search);
+const [DIM_FROM, DIM_TO] = (params.get("dim") || "22-6").split("-").map(Number);   // ?dim=off disables
+try { const t = localStorage.getItem("wifisense-theme"); if (t === "contrast") document.documentElement.dataset.theme = "contrast"; } catch {}
+
+const ICON = {
+  occ: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.2c2.6.3 4.5 2.5 4.5 5.8"/></svg>',
+  empty: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5V21M3 21h18"/><circle cx="15" cy="12.5" r="1" fill="currentColor"/></svg>',
+};
+const SEV = { critical: "var(--critical)", serious: "var(--serious)", warning: "var(--warning)", info: "var(--series)", good: "var(--good)", neutral: "var(--muted)" };
+const TITLE = { motion: "Movement", calm: "Movement stopped", blocked: "Path blocked", still: "Still presence", new_device: "Unknown device",
+  left: "Device left", arrived: "Known device arrived", security: "Security alert", ble: "Bluetooth nearby", occupied: "Room occupied",
+  empty: "Room empty", unusual: "Unusual activity", room_motion: "Movement in another room", health: "Wi-Fi health", calibrated: "Calibrated" };
+
+// ---------- clock + night dimming ----------
+let lastMotion = 0;
+function tickClock() {
+  const d = new Date();
+  $("clock").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  $("date").textContent = d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  const h = d.getHours();
+  const night = !Number.isNaN(DIM_FROM) && (DIM_FROM > DIM_TO ? (h >= DIM_FROM || h < DIM_TO) : (h >= DIM_FROM && h < DIM_TO));
+  $("dim").classList.toggle("on", night && Date.now() - lastMotion > 60000);    // movement wakes it for a minute
+}
+setInterval(tickClock, 1000); tickClock();
+
+// ---------- keep the screen awake + tap for full screen ----------
+let wake = null;
+async function keepAwake() { try { if ("wakeLock" in navigator && document.visibilityState === "visible") wake = await navigator.wakeLock.request("screen"); } catch {} }
+document.addEventListener("visibilitychange", keepAwake); keepAwake();
+document.body.addEventListener("click", ev => {
+  if (ev.target.closest("a")) return;
+  lastMotion = Date.now(); tickClock();
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); else document.exitFullscreen();
+});
+
+// ---------- render ----------
+function ago(sec) { return sec < 60 ? "just now" : sec < 3600 ? `${Math.round(sec / 60)} min ago` : `${Math.round(sec / 3600)} h ago`; }
+function dur(sec) { sec = Math.max(0, sec | 0); return sec >= 3600 ? `${(sec / 3600).toFixed(1)} h` : sec >= 60 ? `${Math.round(sec / 60)} min` : `${sec} s`; }
+function render(s) {
+  if (!s || !s.aps) return;
+  const P = s.presence;
+  if (s.motion) lastMotion = Date.now();
+  if (P) {
+    const occ = P.state === "occupied";
+    $("room").style.setProperty("--c", occ ? "var(--series)" : "var(--good)");
+    $("room-dot").innerHTML = occ ? ICON.occ : ICON.empty;
+    $("room-state").textContent = occ ? "Occupied" : "Empty";
+    $("room-sub").textContent = `${Math.round(P.p * 100)}% likely someone is here · for ${dur(s.now - P.since)}`;
+  } else {
+    $("room").style.setProperty("--c", "var(--warning)"); $("room-dot").innerHTML = ""; $("room-state").textContent = "Calibrating…"; $("room-sub").textContent = "";
+  }
+  const sc = Math.min(100, s.score || 0);
+  $("act").style.width = Math.max(2, sc) + "%";
+  $("act").style.background = s.level === "strong" ? "var(--critical)" : s.level === "light" ? "var(--serious)" : "var(--good)";
+  $("act-lbl").textContent = s.level === "strong" ? "Strong movement" : s.level === "light" ? "Light movement" : "Calm, no movement";
+  drawRadar(s);
+  const nowD = new Date(s.ts.replace(" ", "T"));
+  const evs = (s.feed || []).filter(e => !e.past).slice(0, 3);
+  $("events").innerHTML = evs.map(e => `<div class="ev" style="--c:${SEV[e.severity] || "var(--muted)"}"><b>${esc(TITLE[e.kind] || e.kind)}</b>
+      <span>${esc(e.msg)}</span><small>${ago((nowD - new Date(e.ts.replace(" ", "T"))) / 1000)}</small></div>`).join("")
+    || `<div class="ev" style="--c:var(--good)"><b>All quiet</b><span>No detections since the dashboard started</span></div>`;
+}
+function drawRadar(s) {
+  const C = 300, R = 270, n = s.aps.length, maxD = Math.max(2, ...s.aps.map(a => a.dist)) * 1.1;
+  let g = `<circle cx="${C}" cy="${C}" r="${R}" fill="var(--surface)" stroke="var(--border)"/>`;
+  for (const f of [0.33, 0.66]) g += `<circle cx="${C}" cy="${C}" r="${R * f}" fill="none" stroke="var(--grid)"/>`;
+  g += `<g class="sweep" style="animation-delay:${-(performance.now() % 6000).toFixed(0)}ms"><path d="M${C},${C} L${C},${C - R} A${R},${R} 0 0 1 ${C + R * Math.sin(Math.PI / 5)},${C - R * Math.cos(Math.PI / 5)} Z" fill="var(--series)" opacity=".09"/></g>`;
+  s.aps.forEach((a, i) => {
+    const ang = -Math.PI / 2 + 2 * Math.PI * i / Math.max(1, n) + (n === 1 ? Math.PI / 4 : 0);
+    const r = Math.max(110, Math.sqrt(Math.min(a.dist, maxD) / maxD) * R);     // keep clear of the YOU label
+    const x = C + r * Math.cos(ang), y = C + r * Math.sin(ang);
+    const col = a.state === "moving" ? "var(--serious)" : (a.state === "still" || a.state === "blocked") ? "var(--warning)" : "var(--text-2)";
+    const on = a.state === "moving" || a.state === "still" || a.state === "blocked";
+    g += `<line x1="${C}" y1="${C}" x2="${x}" y2="${y}" stroke="${on ? col : "var(--grid)"}" stroke-width="${on ? 5 : 2}"/>
+      <circle cx="${x}" cy="${y}" r="16" fill="var(--bg)" stroke="${col}" stroke-width="4"/>
+      <text x="${x}" y="${y + 42}" text-anchor="middle" fill="var(--text-2)" font-size="22" font-weight="600">${esc((a.name || a.ssid).slice(0, 14))}</text>`;
+  });
+  g += `<circle cx="${C}" cy="${C}" r="22" fill="var(--series)"/><text x="${C}" y="${C + 56}" text-anchor="middle" fill="var(--text)" font-size="22" font-weight="700">YOU</text>`;
+  $("radar").innerHTML = g;
+  const mv = s.aps.filter(a => a.state === "moving").map(a => a.name || a.ssid);
+  $("radar").setAttribute("aria-label", `Signal map: ${n} sources` + (mv.length ? `, movement near ${mv.join(", ")}` : ""));
+}
+
+// ---------- live push, polling fallback ----------
+function setLive(on, t) { $("live").classList.toggle("off", !on); $("live-txt").textContent = t; }
+async function poll() { try { render(await (await fetch("/api/state", { cache: "no-store" })).json()); setLive(true, "Live"); } catch { setLive(false, "Offline"); } setTimeout(poll, 2000); }
+function connect() {
+  if (!("EventSource" in window)) return poll();
+  const es = new EventSource("/api/stream"); let fails = 0;
+  es.onopen = () => { fails = 0; setLive(true, "Live"); };
+  es.onmessage = ev => { try { render(JSON.parse(ev.data)); } catch {} };
+  es.onerror = () => { setLive(false, "Reconnecting…"); if (++fails >= 5) { es.close(); poll(); } };
+}
+connect();
+</script>
+</body>
+</html>

@@ -109,12 +109,14 @@ PAGES = {"/": "wifi_web.html", "/index.html": "wifi_web.html",
          "/history": "history.html", "/history.html": "history.html",
          "/devices": "devices.html", "/devices.html": "devices.html",
          "/health": "health.html", "/floorplan": "floorplan.html", "/rules": "rules.html",
-         "/tuning": "tuning.html"}
+         "/tuning": "tuning.html", "/kiosk": "kiosk.html"}
 BRAND_FILES = {"logo_mark.png": "image/png", "logo_full.png": "image/png", "favicon.ico": "image/x-icon",
                "favicon-32.png": "image/png", "icon-192.png": "image/png", "icon-512.png": "image/png",
                "apple-touch-icon.png": "image/png"}
 RECENT_SCANS = 2400                # ~60 min of per-scan path ratios kept in memory (why-drilldown, heat trail)
-STATIC = {"/manifest.json": ("manifest.json", "application/manifest+json"),
+STATIC = {"/nav.js": ("nav.js", "text/javascript; charset=utf-8"),
+          "/nav.css": ("nav.css", "text/css; charset=utf-8"),
+          "/manifest.json": ("manifest.json", "application/manifest+json"),
           "/sw.js": ("sw.js", "text/javascript; charset=utf-8"),
           "/icon.svg": ("icon.svg", "image/svg+xml")}
 
@@ -1424,6 +1426,8 @@ def make_handler(sensor):
                     return self._send(200, dict(devices=devs, tuning=sensor.devices.tuning))
                 if u.path == "/api/stream":
                     return self._stream()
+                if u.path == "/api/snooze":
+                    return self._send(200, {"snooze": sensor.alerter.snooze_state()})
                 if u.path == "/api/why":
                     return self._send(200, insights.why(int(qs["id"][0]), list(sensor.recent), sensor.names(),
                                                         dict(sensor.cur_thresholds)))
@@ -1524,6 +1528,9 @@ def make_handler(sensor):
                 if p == "/api/report/send":
                     r = sensor.make_report(send=True)
                     return self._send(200, dict(r, error=sensor.alerter.last_error))
+                if p == "/api/snooze":
+                    return self._send(200, {"snooze": sensor.alerter.set_snooze(str(body.get("group")),
+                                                                                int(body.get("minutes") or 0))})
                 if p == "/api/node/report":
                     sensor.node_report(clean_node_report(body), self.client_address[0])
                     return self._send(200, {"ok": True})
