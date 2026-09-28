@@ -3,6 +3,7 @@
 This project allows an ESP32 board to control **four nRF24L01+ modules** for RF jamming (Bluetooth jammer, BLE jammer, WiFi jammer, RC jammer, ...) or channel sweeping across multiple 2.4GHz bands. Each module can be independently controlled and jam on its own channel. Modes are selectable via serial commands.
 
 ---
+
 ## Pin Mapping
 
 # ESP32 with 4 nRF24L01+ Modules Wiring Guide
@@ -69,6 +70,7 @@ This guide shows how to connect **four nRF24L01+ modules** to an **ESP32**, usin
 
 All modules: VCC to 3.3V, GND to GND (do NOT use 5V!)
 ```
+
 ---
 
 ## Serial Commands
